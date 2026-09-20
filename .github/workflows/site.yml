@@ -1,0 +1,123 @@
+name: Site
+
+# Builds the documentation site. The generator lives in jlt-commons/docs-engine;
+# this repo owns its content, its config in docs/site.edn, and nothing else
+# about the rendering.
+#
+# The engine is pinned to a tag rather than tracking its main branch, so a
+# change over there cannot break these docs without someone choosing it.
+#
+# MANUAL ONLY, ON PURPOSE. This repo is private, and a private repo is billed
+# for every Actions minute, so there is no push or pull_request trigger here.
+# Those get restored deliberately if and when the repo goes public.
+#
+# PUBLISHING IS OFF as well. The deploy job is gated on the PUBLISH_SITE
+# repository variable, which does not exist, and GitHub Pages is not enabled on
+# this repo. Both must change for anything to be served, and enabling Pages is
+# its own decision rather than something going public implies.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys must not race, and a half-applied Pages deployment is worse than a
+# slightly stale one, so main is never cancelled.
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # v0.3.2 fixes `jolt run build`/`clean` (docs-engine#3); v0.3.1 added
+  # heading anchors.
+  DOCS_ENGINE_REF: v0.3.2
+  BASE_PATH: /raylib-pacman
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out the docs engine
+        uses: actions/checkout@v7
+        with:
+          repository: jlt-commons/docs-engine
+          ref: ${{ env.DOCS_ENGINE_REF }}
+          path: .docs-engine
+
+      - name: Install jolt
+        uses: jlt-commons/setup-jolt@v1
+
+      - name: Build
+        working-directory: .docs-engine
+        run: jolt run build "$GITHUB_WORKSPACE"
+
+      # Each check below names a symptom a reader would otherwise have to
+      # diagnose from a rendered page.
+      - name: Check the build
+        run: |
+          set -euo pipefail
+          out=_site
+
+          test -f "$out/index.html"       || { echo "no homepage generated"; exit 1; }
+          test -f "$out/guide/index.html" || { echo "no guide page generated"; exit 1; }
+          test -f "$out/css/screen.css"   || { echo "static assets missing"; exit 1; }
+          test -f "$out/404.html"         || { echo "no 404 page generated"; exit 1; }
+
+          ! grep -rq '{{site-base}}' "$out"/index.html "$out"/guide/*.html \
+            || { echo "unrendered template variable"; exit 1; }
+
+          # The previews are the only evidence these ports render correctly, so
+          # a docs build that quietly drops them is worse than one that fails.
+          for port in babashka clojure jank jolt; do
+            test -f "$out/demos/$port-example.gif" \
+              || { echo "the $port preview is missing from the build"; exit 1; }
+          done
+
+          # This project's diagrams are on the architecture page, not the
+          # homepage. Both directions fail quietly: a diagram page that drops
+          # the bundle renders unstyled source text, and a page without one
+          # that loads it costs every reader a large download for nothing.
+          grep -q 'pre class="mermaid"' "$out/guide/architecture.html" \
+            || { echo "the architecture diagrams are missing"; exit 1; }
+          grep -q 'mermaid.min.js' "$out/guide/architecture.html" \
+            || { echo "the architecture page has diagrams but is not loading mermaid"; exit 1; }
+          ! grep -q 'mermaid.min.js' "$out/guide/index.html" \
+            || { echo "a page with no diagram is loading mermaid"; exit 1; }
+
+          # The failure mode this site's base path exists to prevent. Served at
+          # b12n-oss.github.io/raylib-pacman/, a root-absolute URL loads the
+          # ORGANIZATION site's asset instead of this project's. The page still
+          # renders, wearing the wrong clothes, so nothing but a check catches it.
+          if grep -ohE '(href|src)="/[^"]*"' "$out"/index.html "$out"/404.html "$out"/guide/*.html \
+               | grep -vE "=\"$BASE_PATH/"; then
+            echo "the URLs above escape $BASE_PATH and would resolve against the org site"
+            exit 1
+          fi
+
+          echo "build looks correct: every URL under $BASE_PATH"
+
+      - name: Upload the Pages artifact
+        if: github.ref == 'refs/heads/main' && vars.PUBLISH_SITE == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    # Publishing is off until BOTH of these are true: the PUBLISH_SITE
+    # repository variable is set to "true", and GitHub Pages is enabled on this
+    # repo. Neither is the case today, on purpose.
+    if: github.ref == 'refs/heads/main' && vars.PUBLISH_SITE == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

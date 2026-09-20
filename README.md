@@ -141,9 +141,9 @@ The guide pages build into a static site with the
 [docs-engine](https://github.com/jlt-commons/docs-engine):
 
 ```sh
-bb docs:build     # generate _site/
-bb docs:serve     # build, then serve at localhost:3000
-bb docs:clean     # delete the build output
+bb site:build     # generate _site/
+bb site:serve     # build, then serve at localhost:3000
+bb site:clean     # delete the build output
 ```
 
 Nothing publishes. See `docs/site.edn` for what wiring the publish half would

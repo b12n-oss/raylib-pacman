@@ -1,5 +1,6 @@
 {:tasks
- {:requires ([babashka.process :as p]
+ {:requires ([babashka.fs :as fs]
+             [babashka.process :as p]
              [clojure.string :as str])
 
   :init
@@ -44,17 +45,35 @@
         :cmd "jolt -M:pacman"
         :desc "raylib over net.b12n/raylib on jolt.ffi. The wrapper's sector! measures from 0=up, where raylib measures from 0=right."}])
 
-    (defn docs-engine
-      "Where the docs-engine checkout lives. It is a separate repo, not a
-       dependency, so this is a path rather than a coordinate."
+    (def docs-engine-repo "https://github.com/jlt-commons/docs-engine")
+
+    (defn docs-engine-dir
+      "Where the docs-engine checkout lives. It is a separate repo rather than
+       a dependency, so this is a path search, not a coordinate. CI does not
+       use this at all: the workflow checks the engine out itself, pinned to a
+       tag."
       []
-      (let [d (or (System/getenv "DOCS_ENGINE")
-                  (str (System/getProperty "user.home") "/dev/jlt-commons/docs-engine"))]
-        (when-not (.isDirectory (java.io.File. d))
-          (println "docs-engine not found at" d)
-          (println "clone https://github.com/jlt-commons/docs-engine, or set DOCS_ENGINE")
-          (System/exit 2))
-        d))
+      (->> [(System/getenv "DOCS_ENGINE")
+            "../docs-engine"
+            (str (System/getProperty "user.home") "/dev/jlt-commons/docs-engine")]
+           (remove nil?)
+           (filter (fn [d] (fs/exists? (fs/file d "bb.edn"))))
+           first))
+
+    (defn site-task
+      [task & args]
+      (if-let [engine (docs-engine-dir)]
+        (let [argv (into ["bb" task (System/getProperty "user.dir")] (remove nil? args))
+              res (apply p/shell {:dir (str engine) :continue true} argv)]
+          (when-not (zero? (:exit res)) (System/exit (:exit res))))
+        (do
+          (println "The docs engine is not checked out anywhere I looked:")
+          (println "  $DOCS_ENGINE, ../docs-engine, ~/dev/jlt-commons/docs-engine")
+          (println)
+          (println "  git clone" docs-engine-repo "../docs-engine")
+          (println)
+          (println "CI does not need this. It checks the engine out itself.")
+          (System/exit 1))))
 
     (defn find-example
       [nm]
@@ -119,9 +138,9 @@
                   (println "    bb record                refresh docs/demos/*.gif")
                   (println)
                   (println "  docs site")
-                  (println "    bb docs:build            build _site/")
-                  (println "    bb docs:serve            build and serve on :3000")
-                  (println "    bb docs:clean            delete the build output")
+                  (println "    bb site:build            build _site/")
+                  (println "    bb site:serve            build and serve on :3000")
+                  (println "    bb site:clean            delete the build output")
                   (println)
                   (println "  Each directory also stands alone:")
                   (println "    cd jank-example && bb info")
@@ -207,15 +226,14 @@
   ;; None of these publish. See docs/site.edn for why, and for what wiring the
   ;; publish half would mean.
 
-  docs:build {:doc "Build the docs site into _site/ (needs the docs-engine checkout)"
-              :task (p/shell {:dir (docs-engine)} "jolt" "run" "build" (System/getProperty "user.dir"))}
+  site:build {:doc "Build the documentation site into _site/ (needs a docs-engine checkout)"
+              :task (site-task "build")}
 
-  docs:serve {:doc "Build the docs site and serve it at localhost:3000"
-              :task (apply p/shell {:dir (docs-engine)} "bb" "serve"
-                           (System/getProperty "user.dir") *command-line-args*)}
+  site:serve {:doc "Build the docs site and serve it locally (bb site:serve [port], default 3000)"
+              :task (site-task "serve" (first *command-line-args*))}
 
-  docs:clean {:doc "Delete the docs site build output"
-              :task (p/shell {:dir (docs-engine)} "jolt" "run" "clean" (System/getProperty "user.dir"))}
+  site:clean {:doc "Delete the _site/ build output"
+              :task (site-task "clean")}
 
   ;; screen-grab and cgevent are INTERNAL tools and are not public yet, so this
   ;; task only works on a machine that has them. The GIFs it produces are

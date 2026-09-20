@@ -5,10 +5,6 @@ target/
 .lsp/
 .clj-kondo/.cache/
 
-# agent instruction symlinks live in the planning store, not in git
-/CLAUDE.md
-/AGENTS.md
-
 # nrepl handshake files, written and removed per run
 .nrepl-port
 NREPL.lock

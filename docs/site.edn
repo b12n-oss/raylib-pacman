@@ -2,9 +2,9 @@
 ;; (https://github.com/jlt-commons/docs-engine).
 ;;
 ;; Build or preview it from this repo:
-;;   bb docs:build     generate docs/_site/
-;;   bb docs:serve     build, then serve at localhost:3000
-;;   bb docs:clean     delete the build output
+;;   bb site:build     generate _site/
+;;   bb site:serve     build, then serve at localhost:3000
+;;   bb site:clean     delete the build output
 ;;
 ;; NOTHING PUBLISHES. This repo is private, and no site repo, GitHub Pages
 ;; setting or S3 target is wired up for it. `bb docs:build` writes to a local
