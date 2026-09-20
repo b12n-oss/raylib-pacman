@@ -19,8 +19,9 @@
                   (println "  bb doctor           check jank, lein and libraylib")
                   (println)
                   (println "  First run compiles raylib-sys natively and takes a few")
-                  (println "  minutes. Frame 0 then costs about six seconds of JIT on")
-                  (println "  top; every frame after it runs at 60 FPS.")
+                  (println "  minutes. After that `lein run` still compiles as it loads,")
+                  (println "  costing ~13s before the first frame. The AOT binary it")
+                  (println "  leaves in target/debug/ starts in about a second.")
                   (println))}
 
   pacman {:doc "Pac-Man with the classic ghost personalities"

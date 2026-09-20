@@ -1,0 +1,26 @@
+;; Configuration for the documentation site, read by the docs-engine
+;; (https://github.com/jlt-commons/docs-engine).
+;;
+;; Build or preview it from this repo:
+;;   bb docs:build     generate docs/_site/
+;;   bb docs:serve     build, then serve at localhost:3000
+;;   bb docs:clean     delete the build output
+;;
+;; NOTHING PUBLISHES. This repo is private, and no site repo, GitHub Pages
+;; setting or S3 target is wired up for it. `bb docs:build` writes to a local
+;; directory that is gitignored, and that is the whole pipeline today. When
+;; the repo goes public, the publish half gets added deliberately, as its own
+;; change: a *.github.io site repo, or the S3 and CloudFront path the sibling
+;; projects use.
+{;; :base-path is what makes this a project site rather than an org one. If it
+ ;; is ever served at https://b12n-oss.github.io/raylib-pacman/, every URL the
+ ;; engine emits needs that prefix. Leave it out and the pages still render,
+ ;; but each one loads the ORGANIZATION site's stylesheet and every asset
+ ;; 404s.
+ :base-path   "/raylib-pacman"
+
+ :title       "raylib-pacman"
+ :description "One Pac-Man, four runtimes. The same game written against raylib from babashka, Clojure, jank and jolt, kept side by side so the differences are readable."
+
+ ;; The GIFs and stills the guide pages link to.
+ :asset-dirs  ["demos"]}

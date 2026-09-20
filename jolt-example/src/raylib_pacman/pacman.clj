@@ -381,17 +381,57 @@
              :chase? (not (:chase? s))
              :mode-timer (if (:chase? s) CHASE-SECONDS SCATTER-SECONDS)))))
 
+(def key->dir
+  {rl/KEY-LEFT [-1 0] rl/KEY-A [-1 0]
+   rl/KEY-RIGHT [1 0] rl/KEY-D [1 0]
+   rl/KEY-UP [0 -1] rl/KEY-W [0 -1]
+   rl/KEY-DOWN [0 1] rl/KEY-S [0 1]})
+
+(defn drain-key-queue
+  "Every key-down raylib saw since the last frame, drained from its key QUEUE.
+
+  IsKeyDown and IsKeyPressed both read POLLED state. PollInputEvents copies
+  current to previous and then lets GLFW's callback update current, so a press
+  that goes down AND up inside one poll leaves no trace in either one. The
+  queue is different: the callback appends to it on every key-down and only the
+  app drains it, so a tap shorter than a frame still shows up here.
+
+  That is the difference between a key a person holds and a synthetic one, and
+  it is why a recorded demo can steer this game at all. Drain it every frame
+  whether or not anything wants the result, or it backs up."
+  []
+  (loop [acc []]
+    (let [k (rl/get-key-pressed)]
+      (if (zero? k) acc (recur (conj acc k))))))
+
+(defn steer?
+  "True while `k` is held, and on the single frame it is first pressed.
+
+  A tap counts as well as a hold. IsKeyDown is only true on the frames the key
+  is physically down, so a press shorter than one frame is lost; IsKeyPressed
+  latches for exactly one frame, which is what catches it. Reading both means a
+  quick tap buffers a turn for a human, and it is also the difference between a
+  synthetic keystroke steering this game and doing nothing at all, since a
+  posted CGEvent key press has no measurable duration."
+  [k]
+  (or (rl/key-down? k) (rl/key-pressed? k)))
+
 (defn read-input
   "Buffer a steering direction; `step-entity` applies it at the next legal tile
   centre. ENTER restarts once the game is over."
   [s]
-  (let [dir (cond
-              (or (rl/key-down? rl/KEY-LEFT) (rl/key-down? rl/KEY-A)) [-1 0]
-              (or (rl/key-down? rl/KEY-RIGHT) (rl/key-down? rl/KEY-D)) [1 0]
-              (or (rl/key-down? rl/KEY-UP) (rl/key-down? rl/KEY-W)) [0 -1]
-              (or (rl/key-down? rl/KEY-DOWN) (rl/key-down? rl/KEY-S)) [0 1])]
+  (let [queued (drain-key-queue)
+        held (cond
+               (or (steer? rl/KEY-LEFT) (steer? rl/KEY-A)) [-1 0]
+               (or (steer? rl/KEY-RIGHT) (steer? rl/KEY-D)) [1 0]
+               (or (steer? rl/KEY-UP) (steer? rl/KEY-W)) [0 -1]
+               (or (steer? rl/KEY-DOWN) (steer? rl/KEY-S)) [0 1])
+        ;; The most recent tap wins over whatever is being held.
+        tapped (some key->dir (reverse queued))
+        dir (or tapped held)]
     (cond
-      (and (:over? s) (rl/key-pressed? rl/KEY-ENTER)) (new-game)
+      (and (:over? s) (or (rl/key-pressed? rl/KEY-ENTER)
+                          (boolean (some #{rl/KEY-ENTER} queued)))) (new-game)
       dir (update s :pac assoc :ndx (first dir) :ndy (second dir))
       :else s)))
 

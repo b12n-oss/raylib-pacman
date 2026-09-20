@@ -96,6 +96,36 @@ It also will not catch a bug that takes longer than the capture to appear. Three
 seconds is roughly 180 frames, which is enough to see Pac-Man cross half the
 maze and eat a power pellet, and not enough to see a level cleared.
 
+## The animated previews
+
+The GIFs under `docs/demos/` come from a different mechanism to the PNGs above:
+`screen-grab`, driven by the manifest in `scripts/demo_manifest.edn`, which
+launches each port, steers it with synthetic keystrokes and records its window.
+
+**`screen-grab` and `cgevent` are internal b12n tools and are not public yet**,
+so `bb record` only runs on a machine that has them. That deliberately does not
+matter to anyone else: every GIF is committed, so the docs site, the README
+gallery and this guide all build with no capture toolchain installed at all.
+The manifest is committed for the same reason a build script is, to say how the
+previews were made rather than to leave them as artifacts nobody can reproduce.
+
+One finding from that work belongs here rather than in the manifest, because it
+is about raylib and not about the recorder. See
+[the-game.md](the-game.md) for where it landed in the code.
+
+A synthetic keystroke has no duration. `IsKeyDown` and `IsKeyPressed` both read
+polled state, and `PollInputEvents` copies current to previous before letting
+GLFW's callback update current, so a press that goes down and up inside one
+poll leaves no trace in either. The game saw nothing, and the first recordings
+were eight seconds of Pac-Man parked against a wall.
+
+ESC closed the window the whole time, which is what gave it away: raylib checks
+the exit key inside the GLFW callback rather than from polled state. The queue
+works the same way. The callback appends every key-down to
+`keyPressedQueue`, and only the app drains it, so `GetKeyPressed` sees a tap
+that `IsKeyDown` cannot. All four ports now read the queue as well as the held
+state, which makes a quick tap register for a person too.
+
 ## Running the sweep
 
 From the repository root:

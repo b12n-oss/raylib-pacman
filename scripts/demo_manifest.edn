@@ -1,0 +1,72 @@
+;; screen-grab manifest for the four Pac-Man ports.
+;;
+;; screen-grab and cgevent are INTERNAL b12n tools and are NOT public yet, so
+;; there is nothing to link to and `bb record` only runs on a machine that has
+;; them. That is fine for everyone else: every GIF this manifest produces is
+;; committed under docs/demos/, so the docs build and the README gallery work
+;; with no capture toolchain at all. This file is here to document how the
+;; previews were made, and to make them reproducible for whoever can.
+;;
+;; Regenerate with `bb record` (maintainer-only; every GIF here is committed).
+;; Iterate on one item with `bb record --only jank-example`.
+;;
+;; The item list comes from `bb demos:examples`, which reads the same
+;; `examples` registry in bb.edn that `bb info` and `bb play` walk. Do not
+;; restate the items here: a second list drifts.
+
+{:driver  :spawn
+ :capture :cgevent-gif
+
+ :examples-cmd "bb demos:examples"
+
+ :out-dir  "docs/demos"
+ :ledger   "docs/demos/ledger.edn"
+ :readme   "docs/demos/README.md"
+ :title    "Demos"
+ :preamble "One animated preview per port, all four running the same game. Every GIF here is committed, so nothing in this repo needs a capture toolchain to build. They were recorded with `screen-grab` over `cgevent`, internal b12n tools that are not public yet; `bb record` regenerates them on a machine that has both."
+
+ :groups [{:key "ports" :title "The four ports"}]
+
+ ;; The jank item runs its AOT binary rather than `lein run`: lein starts two
+ ;; processes named `jank`, so naming the app is ambiguous and cgevent refuses
+ ;; it, while the binary's own pid owns its window. Building it is a
+ ;; prerequisite rather than something this manifest can do, so it is declared
+ ;; here and reported with its fix instead of failing as a mystery timeout.
+ :preflight [{:file "jank-example/target/debug/jank-example"
+              :fix "cd jank-example && bb check"}]
+
+ ;; :ready-probe waits for a real rendered frame rather than for the window to
+ ;; exist, which is the difference between capturing a game and capturing a
+ ;; blank window that has not drawn yet. The generous :warmup covers JVM start
+ ;; on the Clojure item and the native build on the jank one.
+ :defaults {:duration 8
+            :fps 12
+            :width 480
+            :warmup 120
+            :ready-probe true}
+
+ ;; Steering. Pac-Man starts walking left and, left alone, reaches the wall and
+ ;; stops, which makes a dull preview. These are direction taps spread across
+ ;; the take.
+ ;;
+ ;; A tap that lands on an illegal turn costs nothing: the game BUFFERS a
+ ;; direction and applies it at the next tile centre where it is legal, so a
+ ;; press into a wall is simply carried until it becomes possible or is
+ ;; replaced. That is why this timeline does not have to know the maze.
+ ;;
+ ;; SYNTHETIC INPUT IS BEST-EFFORT, and this game reads IsKeyDown rather than
+ ;; IsKeyPressed, so a tap has to overlap a poll rather than latch for a frame.
+ ;; Judge a take by opening the GIF, never by its frame count.
+ :overrides
+ {"babashka-example" {:input [[1.0 :key "up"] [2.0 :key "right"] [3.0 :key "down"]
+                              [4.0 :key "right"] [5.0 :key "up"] [6.0 :key "left"]
+                              [7.0 :key "down"]]}
+  "clojure-example"  {:input [[1.0 :key "up"] [2.0 :key "right"] [3.0 :key "down"]
+                              [4.0 :key "right"] [5.0 :key "up"] [6.0 :key "left"]
+                              [7.0 :key "down"]]}
+  "jank-example"     {:input [[1.0 :key "up"] [2.0 :key "right"] [3.0 :key "down"]
+                              [4.0 :key "right"] [5.0 :key "up"] [6.0 :key "left"]
+                              [7.0 :key "down"]]}
+  "jolt-example"     {:input [[1.0 :key "up"] [2.0 :key "right"] [3.0 :key "down"]
+                              [4.0 :key "right"] [5.0 :key "up"] [6.0 :key "left"]
+                              [7.0 :key "down"]]}}}

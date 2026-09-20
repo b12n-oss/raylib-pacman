@@ -46,6 +46,7 @@
 (defcfn get-frame-time "GetFrameTime" [] :float)
 (defcfn key-down? "IsKeyDown" [:int] :uint8)
 (defcfn key-pressed? "IsKeyPressed" [:int] :uint8)
+(defcfn get-key-pressed "GetKeyPressed" [] :int)
 (defcfn rl-begin "rlBegin" [:int] :void)
 (defcfn rl-end "rlEnd" [] :void)
 (defcfn rl-vertex-2f "rlVertex2f" [:float :float] :void)
@@ -71,6 +72,41 @@
   (pos? (key-down? k)))
 
 (defn pressed? [k] (pos? (key-pressed? k)))
+
+(def key->dir
+  {KEY-LEFT [-1 0] KEY-A [-1 0]
+   KEY-RIGHT [1 0] KEY-D [1 0]
+   KEY-UP [0 -1] KEY-W [0 -1]
+   KEY-DOWN [0 1] KEY-S [0 1]})
+
+(defn drain-key-queue
+  "Every key-down raylib saw since the last frame, drained from its key QUEUE.
+
+  IsKeyDown and IsKeyPressed both read POLLED state. PollInputEvents copies
+  current to previous and then lets GLFW's callback update current, so a press
+  that goes down AND up inside one poll leaves no trace in either one. The
+  queue is different: the callback appends to it on every key-down and only the
+  app drains it, so a tap shorter than a frame still shows up here.
+
+  That is the difference between a key a person holds and a synthetic one, and
+  it is why a recorded demo can steer this game at all. Drain it every frame
+  whether or not anything wants the result, or it backs up."
+  []
+  (loop [acc []]
+    (let [k (get-key-pressed)]
+      (if (zero? k) acc (recur (conj acc k))))))
+
+(defn steer?
+  "True while `k` is held, and on the single frame it is first pressed.
+
+  A tap counts as well as a hold. IsKeyDown is only true on the frames the key
+  is physically down, so a press shorter than one frame is lost; IsKeyPressed
+  latches for exactly one frame, which is what catches it. Reading both means a
+  quick tap buffers a turn for a human, and it is also the difference between a
+  synthetic keystroke steering this game and doing nothing at all, since a
+  posted CGEvent key press has no measurable duration."
+  [k]
+  (or (down? k) (pressed? k)))
 
 ;; --- the maze ----------------------------------------------------------------
 ;; # wall, . dot, o power pellet, - ghost-house door, P pac-man start,
@@ -440,13 +476,18 @@
   "Buffer a steering direction; `step-entity` applies it at the next legal tile
   centre. ENTER restarts once the game is over."
   [s]
-  (let [dir (cond
-              (or (down? KEY-LEFT) (down? KEY-A)) [-1 0]
-              (or (down? KEY-RIGHT) (down? KEY-D)) [1 0]
-              (or (down? KEY-UP) (down? KEY-W)) [0 -1]
-              (or (down? KEY-DOWN) (down? KEY-S)) [0 1])]
+  (let [queued (drain-key-queue)
+        held (cond
+               (or (steer? KEY-LEFT) (steer? KEY-A)) [-1 0]
+               (or (steer? KEY-RIGHT) (steer? KEY-D)) [1 0]
+               (or (steer? KEY-UP) (steer? KEY-W)) [0 -1]
+               (or (steer? KEY-DOWN) (steer? KEY-S)) [0 1])
+        ;; The most recent tap wins over whatever is being held.
+        tapped (some key->dir (reverse queued))
+        dir (or tapped held)]
     (cond
-      (and (:over? s) (pressed? KEY-ENTER)) (new-game)
+      (and (:over? s) (or (pressed? KEY-ENTER)
+                          (boolean (some #{KEY-ENTER} queued)))) (new-game)
       dir (update s :pac assoc :ndx (first dir) :ndy (second dir))
       :else s)))
 

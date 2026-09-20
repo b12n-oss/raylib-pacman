@@ -12,7 +12,12 @@ purpose.
 | [`jank-example/`](jank-example) | [jank](https://jank-lang.org) | `cpp/` interop, `org.jank-lang.commons/raylib-sys` | `project.clj` |
 | [`jolt-example/`](jolt-example) | [jolt](https://github.com/jolt-lang/jolt) | [net.b12n/raylib](https://github.com/jlt-commons/raylib-jlt), `jolt.ffi` | `deps.edn` |
 
-![Pac-Man](docs/demos/clojure-example.png)
+| | |
+|---|---|
+| **babashka** <br> ![babashka](docs/demos/babashka-example.gif) | **Clojure/JVM** <br> ![clojure](docs/demos/clojure-example.gif) |
+| **jank** <br> ![jank](docs/demos/jank-example.gif) | **jolt** <br> ![jolt](docs/demos/jolt-example.gif) |
+
+Same maze, same ghosts, same physics, four different routes into C.
 
 ## Running one
 
@@ -97,11 +102,17 @@ getting this wrong points Pac-Man's mouth a quarter-turn away from where he is
 walking while everything still compiles and runs.
 
 **The deadline.** All four count game time, summed from the clamped per-frame
-dt, rather than wall time. jank is why. It compiles a fn the first time that fn
-is called, so frame 0 pays for the entire draw path at once and takes about six
-seconds, and every frame after it runs at a steady 60 FPS. A wall clock charges
-that one-time warm-up against the deadline and quits before frame 2, which looks
-exactly like a game that does not work.
+dt, rather than wall time. jank run through Leiningen is why. `lein run`
+compiles as it loads, so frame 0 pays for the entire draw path at once: six
+game-seconds of play took 19.6 seconds of wall clock, of which the first twenty
+frames were 6.3 of it, and every frame after that ran at a steady 60 FPS. A
+wall clock charges that one-time cost against the deadline and quits before
+frame 2, which looks exactly like a game that does not work.
+
+Worth separating from jank itself, because the obvious conclusion is the wrong
+one. Run the same code as the AOT binary `lein` leaves in `target/` and there is
+no warm-up at all: a window in about a second, and six game-seconds in 6.4 of
+wall clock. The cost belongs to the `lein run` path, not to the language.
 
 ## Adding another example
 
@@ -124,6 +135,24 @@ Longer form, in [`docs/guide/`](docs/guide):
 | [running-unattended.md](docs/guide/running-unattended.md) | Deadlines, screenshots, and why the clock is game time. |
 | [babashka.md](docs/guide/babashka.md) [clojure.md](docs/guide/clojure.md) [jank.md](docs/guide/jank.md) [jolt.md](docs/guide/jolt.md) | One page per runtime. |
 
+## Docs site
+
+The guide pages build into a static site with the
+[docs-engine](https://github.com/jlt-commons/docs-engine):
+
+```sh
+bb docs:build     # generate _site/
+bb docs:serve     # build, then serve at localhost:3000
+bb docs:clean     # delete the build output
+```
+
+Nothing publishes. See `docs/site.edn` for what wiring the publish half would
+involve.
+
+## Licence
+
+Eclipse Public License 2.0. See [LICENSE](LICENSE).
+
 ## Credits
 
 Pac-Man is Namco's, from 1980. The babashka port began from the
@@ -133,3 +162,7 @@ example, and the jolt port from the `pacman` example in
 project layout follows the
 [raylib-sys example](https://github.com/jank-lang/commons/tree/main/raylib-sys/example)
 in jank's commons repo.
+
+The animated previews were recorded with `screen-grab` over `cgevent`, internal
+b12n tools that are not public yet. Every GIF is committed, so nothing here
+needs a capture toolchain to build or read.

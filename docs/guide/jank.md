@@ -108,16 +108,29 @@ maths comes through `math.h` as `cpp/sin`, `cpp/atan2`, `cpp/floor` and
 Comments must be ASCII. A stray em-dash trips the lexer with
 `lex/invalid-unicode`.
 
-## The warm-up
+## The warm-up belongs to `lein run`, not to jank
 
-jank compiles a fn the first time it is called, so frame 0 pays for the whole
-draw path at once. Measured here: about 6.3 seconds for the first twenty
-frames, then a steady 0.34 seconds per twenty, which is 60 FPS exactly.
+Under `lein run`, frame 0 pays for the whole draw path at once. Measured here:
+about 6.3 seconds for the first twenty frames, then a steady 0.34 seconds per
+twenty, which is 60 FPS exactly. Six game-seconds of play took 19.6 seconds of
+wall clock.
 
-This is a one-time cost and the game is perfectly smooth afterwards, but it is
-large enough to break a naive deadline. See
-[running-unattended.md](running-unattended.md) for what it broke and why every
-port now counts game time instead.
+The tempting conclusion is that this is what jank costs. It is not. The same
+code, run as the AOT binary `lein` leaves in `target/debug/`, reaches a window
+in about a second and plays six game-seconds in 6.4 of wall clock. No warm-up
+is measurable at all:
+
+```
+lein run --disable-sandbox 6     6 game-seconds took 19.6s wall
+./target/debug/jank-example 6    6 game-seconds took  6.4s wall
+```
+
+So `lein run` is the convenient dev path and the slow one, and the binary it
+produces is the honest measure of the language. The recorded preview uses the
+binary for exactly this reason.
+
+It still broke the deadline, which is why every port counts game time rather
+than wall time. See [running-unattended.md](running-unattended.md).
 
 ## Building it
 

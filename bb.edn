@@ -4,27 +4,69 @@
 
   :init
   (do
-    ;; One row per standalone example. Adding a runtime means adding a
-    ;; directory and a row here; every task below walks this vector, so
-    ;; nothing else in this file needs to change.
+    ;; One entry per standalone example, and the only place they are listed.
+    ;; Every task below walks this vector, including `demos:examples`, which
+    ;; feeds screen-grab. Adding a runtime means adding a directory and an
+    ;; entry here; nothing else in this file changes.
+    ;;
+    ;; :target is for screen-grab, and is nil wherever the spawned pid already
+    ;; owns the window. scripts/run-example.sh execs the :cmd, so bb, the
+    ;; clojure script (which execs java) and jolt all keep their pid. jank
+    ;; cannot: lein starts the compiled binary as a child, so that one names
+    ;; its app instead. Measured with `cgevent windows`, not assumed.
+    ;;
+    ;; Naming an app only works when the name is unambiguous, and none of
+    ;; these are: `bb` matches 10 processes on this machine, `java` 23, and
+    ;; lein-jank runs two of its own named `jank`. So every item here is
+    ;; targeted by the pid screen-grab spawned, which is what the `exec` in
+    ;; run-example.sh preserves.
     (def examples
-      ;; [short-name  directory           runtime        binding                       task]
-      [["babashka"   "babashka-example"  "babashka"     "babashka.ffi"                 "babashka"]
-       ["clojure"    "clojure-example"   "Clojure/JVM"  "raylib-clj (coffi / Panama)"  "clj"]
-       ["jank"       "jank-example"      "jank"         "cpp/ interop (raylib-sys)"    "jank"]
-       ["jolt"       "jolt-example"      "jolt"         "net.b12n/raylib (jolt.ffi)"   "jolt"]])
+      [{:id "babashka" :dir "babashka-example" :task "babashka"
+        :runtime "babashka" :binding "babashka.ffi"
+        :cmd "bb pacman"
+        :desc "raylib over babashka.ffi. Colours packed into a uint and Pac-Man emitted as an rlgl triangle fan, because this FFI moves scalars rather than structs."}
+       {:id "clojure" :dir "clojure-example" :task "clj"
+        :runtime "Clojure/JVM" :binding "raylib-clj (coffi / Panama)"
+        :cmd "clojure -M:pacman"
+        :desc "raylib over raylib-clj, which binds it with coffi on Panama. Structs arrive as plain maps, so DrawCircleSector is called directly."}
+       {:id "jank" :dir "jank-example" :task "jank"
+        :runtime "jank" :binding "cpp/ interop (raylib-sys)"
+        ;; The AOT binary, not `lein run`. Two reasons, both measured: lein
+        ;; starts TWO processes named `jank`, so naming the app is ambiguous
+        ;; and cgevent refuses it, while the binary's own pid owns its window.
+        ;; And `lein run` costs about 13s of startup and JIT before the first
+        ;; frame, where the binary is drawing in about a second.
+        ;; `bb record` preflights the binary and tells you how to build it.
+        :cmd "./target/debug/jank-example" :target nil
+        :desc "raylib over jank's cpp/ interop, including raylib.h directly. Recorded from the AOT binary, which starts in about a second; `lein run` compiles as it loads and takes roughly 13 seconds longer to reach the first frame."}
+       {:id "jolt" :dir "jolt-example" :task "jolt"
+        :runtime "jolt" :binding "net.b12n/raylib (jolt.ffi)"
+        :cmd "jolt -M:pacman"
+        :desc "raylib over net.b12n/raylib on jolt.ffi. The wrapper's sector! measures from 0=up, where raylib measures from 0=right."}])
+
+    (defn docs-engine
+      "Where the docs-engine checkout lives. It is a separate repo, not a
+       dependency, so this is a path rather than a coordinate."
+      []
+      (let [d (or (System/getenv "DOCS_ENGINE")
+                  (str (System/getProperty "user.home") "/dev/jlt-commons/docs-engine"))]
+        (when-not (.isDirectory (java.io.File. d))
+          (println "docs-engine not found at" d)
+          (println "clone https://github.com/jlt-commons/docs-engine, or set DOCS_ENGINE")
+          (System/exit 2))
+        d))
 
     (defn find-example
       [nm]
-      (first (filter (fn [row] (= nm (first row))) examples)))
+      (first (filter (fn [e] (= nm (:id e))) examples)))
 
     (defn dir-of
       "The directory for a short name, or a listing and a non-zero exit."
       [nm]
-      (if-let [row (find-example nm)]
-        (second row)
+      (if-let [e (find-example nm)]
+        (:dir e)
         (do (println "unknown example:" (pr-str nm))
-            (println "try one of:" (str/join ", " (map first examples)))
+            (println "try one of:" (str/join ", " (map :id examples)))
             (System/exit 2))))
 
     (defn run-in!
@@ -40,8 +82,8 @@
       "Run a task in every example, reporting each result rather than aborting
        the sweep on the first failure."
       [task args]
-      (let [results (mapv (fn [row]
-                            (let [dir (second row)
+      (let [results (mapv (fn [e]
+                            (let [dir (:dir e)
                                   _ (println (str "\n==> " dir " : bb " task))
                                   {:keys [exit]} (apply p/shell {:dir dir :continue true}
                                                         "bb" task args)]
@@ -59,9 +101,9 @@
                   (println "  raylib-pacman")
                   (println "  One Pac-Man, four runtimes, each a standalone project.")
                   (println)
-                  (doseq [row examples]
+                  (doseq [e examples]
                     (println (format "  bb %-10s %-18s %-12s %s"
-                                     (nth row 4) (second row) (nth row 2) (nth row 3))))
+                                     (:task e) (:dir e) (:runtime e) (:binding e))))
                   (println)
                   (println "  run one")
                   (println "    bb jank                  play it")
@@ -73,7 +115,13 @@
                   (println "    bb check-all             compile or load every example")
                   (println "    bb shot-all              capture a PNG from each")
                   (println "    bb doctor-all            check every toolchain")
-                  (println "    bb demos                 refresh docs/demos/*.png")
+                  (println "    bb shots                 refresh docs/demos/*.png stills")
+                  (println "    bb record                refresh docs/demos/*.gif")
+                  (println)
+                  (println "  docs site")
+                  (println "    bb docs:build            build _site/")
+                  (println "    bb docs:serve            build and serve on :3000")
+                  (println "    bb docs:clean            delete the build output")
                   (println)
                   (println "  Each directory also stands alone:")
                   (println "    cd jank-example && bb info")
@@ -87,7 +135,7 @@
         :task (let [args *command-line-args*]
                 (if (empty? args)
                   (do (println "usage: bb play <name> [secs] [shot.png] [frame]")
-                      (println "names:" (str/join ", " (map first examples)))
+                      (println "names:" (str/join ", " (map :id examples)))
                       (System/exit 2))
                   (run-in! (first args) "pacman" (rest args))))}
 
@@ -118,14 +166,61 @@
   doctor-all {:doc "Check every toolchain"
               :task (in-each! "doctor" [])}
 
-  demos {:doc "Refresh docs/demos/*.png from a live run of each example"
+  shots {:doc "Refresh docs/demos/*-example.png (stills) from a live run of each"
          :task (do (p/shell "mkdir" "-p" "docs/demos")
-                   (doseq [row examples]
-                     (let [dir (second row)
-                           png (str (second row) ".png")]
+                   (doseq [e examples]
+                     (let [dir (:dir e)
+                           png (str dir ".png")]
                        (println (str "\n==> " dir))
                        (apply p/shell {:dir dir :continue true}
                               "bb" ["pacman" "4" png "140"])
                        (p/shell {:continue true}
                                 "sh" "-c" (str "mv -f " dir "/" png " docs/demos/" png))))
-                   (p/shell "sh" "-c" "ls -la docs/demos/"))}}}
+                   (p/shell "sh" "-c" "ls -la docs/demos/"))}
+
+  ;; --- animated demos, via screen-grab -------------------------------------
+
+  demos:examples
+  {:doc "Print the demo item list as EDN for screen-grab"
+   :task
+   (prn (mapv (fn [e]
+                {:id (:dir e)
+                 :group "ports"
+                 :desc (:desc e)
+                 ;; screen-grab TOKENIZES :run rather than handing it to a
+                 ;; shell, so `cd X && ...` here would exec `cd`. The wrapper
+                 ;; script is the shell that string cannot be. Its deadline
+                 ;; outlasts the capture, so the window is still there for the
+                 ;; whole take and the app still exits on its own afterwards.
+                 :run (str "scripts/run-example.sh " (:dir e) " 30 " (:cmd e))
+                 :src (str (:dir e) "/src/raylib_pacman/pacman."
+                           (if (= "jank" (:id e)) "jank" "clj"))
+                 :target (:target e)})
+              examples))}
+
+  ;; --- documentation site, via docs-engine ---------------------------------
+  ;;
+  ;; The engine lives in its own checkout and is pointed at this project, so
+  ;; these tasks shell into it rather than vendoring anything. Override the
+  ;; location with DOCS_ENGINE if yours is elsewhere.
+  ;;
+  ;; None of these publish. See docs/site.edn for why, and for what wiring the
+  ;; publish half would mean.
+
+  docs:build {:doc "Build the docs site into _site/ (needs the docs-engine checkout)"
+              :task (p/shell {:dir (docs-engine)} "jolt" "run" "build" (System/getProperty "user.dir"))}
+
+  docs:serve {:doc "Build the docs site and serve it at localhost:3000"
+              :task (apply p/shell {:dir (docs-engine)} "bb" "serve"
+                           (System/getProperty "user.dir") *command-line-args*)}
+
+  docs:clean {:doc "Delete the docs site build output"
+              :task (p/shell {:dir (docs-engine)} "jolt" "run" "clean" (System/getProperty "user.dir"))}
+
+  ;; screen-grab and cgevent are INTERNAL tools and are not public yet, so this
+  ;; task only works on a machine that has them. The GIFs it produces are
+  ;; committed, which is what keeps the docs buildable without them.
+  record {:doc "Re-record docs/demos/*.gif (maintainer-only; needs the internal screen-grab)"
+          :task (apply p/shell "screen-grab" "record"
+                       "--manifest" "scripts/demo_manifest.edn"
+                       *command-line-args*)}}}

@@ -1,0 +1,6 @@
+{
+  "babashka-example" {:sha "f6d91fd17ef239619ddcec6ceb2867508ae4a785cc70dbec5178fe854e892432", :settings [8 12 480 "gif"], :bytes 318132, :at "2026-09-20T23:31:37.281539Z"}
+  "clojure-example" {:sha "5ccf4b6016296b5a891f0851b673203879d77e4ae41d53af6aead37d36f32630", :settings [8 12 480 "gif"], :bytes 300657, :at "2026-09-20T23:34:18.173697Z"}
+  "jank-example" {:sha "7cac0f1df2b0621f4091980390d4f29f9b506df974815bbab1e799ff92765eaa", :settings [8 12 480 "gif"], :bytes 337561, :at "2026-09-20T23:43:13.581328Z"}
+  "jolt-example" {:sha "335f601022013326f718023b5635587c18e57efd9df7546d482e41e75e89ea41", :settings [8 12 480 "gif"], :bytes 335108, :at "2026-09-20T23:34:18.173728Z"}
+}

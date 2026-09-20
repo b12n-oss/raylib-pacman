@@ -18,3 +18,7 @@ REPL.lock
 */pacman.png
 */probe.png
 */mouth-*.png
+
+# docs-engine build output
+docs/_site/
+_site/

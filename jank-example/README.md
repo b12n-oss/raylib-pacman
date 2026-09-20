@@ -64,12 +64,23 @@ small_real)`, so anything used as an index or handed to `cpp/int` goes through
 through `math.h` as `cpp/sin`, `cpp/atan2`, `cpp/floor` and `cpp/fabs`, `str`
 replaces `format`, and `cpp/TextToInteger` stands in for `parse-long`.
 
-## The warm-up is real and it is fine
+## `lein run` is slow to start; the binary it builds is not
 
-jank compiles a fn the first time it is called, so frame 0 pays for the entire
-draw path at once. On an M1 Pro that is about six seconds. Every frame after it
-runs at a steady 60 FPS, measured at 20 frames per 0.34s.
+Under `lein run`, frame 0 pays for the whole draw path at once. On an M1 Pro
+that is about 6.3 seconds for the first twenty frames, after which it holds a
+steady 60 FPS (20 frames per 0.34s).
 
-This is why the deadline counts game time rather than wall time. A wall clock
-charges the warm-up against it and quits before frame 2, which looks exactly
-like a game that does not work.
+That is the dev path, not the language. The AOT binary Leiningen leaves behind
+has no measurable warm-up:
+
+```sh
+lein run --disable-sandbox 6      # 6 game-seconds, 19.6s wall
+./target/debug/jank-example 6     # 6 game-seconds,  6.4s wall, window in ~1s
+```
+
+Use `lein run` while editing, since it rebuilds what changed. Use the binary
+when you want to see what the code actually costs.
+
+The slow start is also why the deadline counts game time rather than wall time.
+A wall clock charges it against the deadline and quits before frame 2, which
+looks exactly like a game that does not work.
