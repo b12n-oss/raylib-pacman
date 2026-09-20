@@ -1,0 +1,48 @@
+{:tasks
+ {:requires ([babashka.process :as p])
+
+  ;; Every lein invocation needs --disable-sandbox: macOS has no bwrap and the
+  ;; native build aborts without it with "No 'bwrap' executable found", which
+  ;; is not a jank error and does not mention jank at all.
+  :init (def lein-args ["--disable-sandbox"])
+
+  info {:doc "Every task in this example, grouped"
+        :task (do (println)
+                  (println "  raylib-pacman / jank-example")
+                  (println "  raylib called from jank over its cpp/ interop")
+                  (println)
+                  (println "  bb pacman           run it, window stays open")
+                  (println "  bb pacman 10        run it, quit after 10 game-seconds")
+                  (println "  bb shot             run 3s, write pacman.png at frame 76")
+                  (println "  bb check            compile the namespace")
+                  (println "  bb clean            drop the native build cache")
+                  (println "  bb doctor           check jank, lein and libraylib")
+                  (println)
+                  (println "  First run compiles raylib-sys natively and takes a few")
+                  (println "  minutes. Frame 0 then costs about six seconds of JIT on")
+                  (println "  top; every frame after it runs at 60 FPS.")
+                  (println))}
+
+  pacman {:doc "Pac-Man with the classic ghost personalities"
+          :task (apply p/shell "lein" "run" (concat lein-args *command-line-args*))}
+
+  shot {:doc "Run for 3 game-seconds and write pacman.png at frame 76"
+        :task (p/shell "lein" "run" "--disable-sandbox" "3" "pacman.png" "76")}
+
+  check {:doc "Compile the namespace"
+         :task (do (p/shell "lein" "jank" "compile" "--disable-sandbox")
+                   (println "OK  raylib-pacman.pacman compiled"))}
+
+  clean {:doc "Drop the native build cache"
+         :task (p/shell "rm" "-rf" "target")}
+
+  ;; jank rejects --version and --help with "Invalid command", so presence is
+  ;; tested with `command -v` rather than by running it. Asking the binary to
+  ;; identify itself reports a perfectly good install as missing.
+  doctor {:doc "Check jank, lein and libraylib"
+          :task (do (p/shell {:continue true} "sh" "-c"
+                             "printf 'jank       '; command -v jank || echo 'NOT FOUND - see https://jank-lang.org'")
+                    (p/shell {:continue true} "sh" "-c"
+                             "printf 'lein       '; lein version 2>/dev/null | head -1 || echo 'NOT FOUND'")
+                    (p/shell {:continue true} "sh" "-c"
+                             "printf 'libraylib  '; ls /opt/homebrew/lib/libraylib.dylib 2>/dev/null || ldconfig -p 2>/dev/null | grep -m1 libraylib || echo 'NOT FOUND - brew install raylib'"))}}}

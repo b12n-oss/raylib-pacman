@@ -1,0 +1,131 @@
+{:tasks
+ {:requires ([babashka.process :as p]
+             [clojure.string :as str])
+
+  :init
+  (do
+    ;; One row per standalone example. Adding a runtime means adding a
+    ;; directory and a row here; every task below walks this vector, so
+    ;; nothing else in this file needs to change.
+    (def examples
+      ;; [short-name  directory           runtime        binding                       task]
+      [["babashka"   "babashka-example"  "babashka"     "babashka.ffi"                 "babashka"]
+       ["clojure"    "clojure-example"   "Clojure/JVM"  "raylib-clj (coffi / Panama)"  "clj"]
+       ["jank"       "jank-example"      "jank"         "cpp/ interop (raylib-sys)"    "jank"]
+       ["jolt"       "jolt-example"      "jolt"         "net.b12n/raylib (jolt.ffi)"   "jolt"]])
+
+    (defn find-example
+      [nm]
+      (first (filter (fn [row] (= nm (first row))) examples)))
+
+    (defn dir-of
+      "The directory for a short name, or a listing and a non-zero exit."
+      [nm]
+      (if-let [row (find-example nm)]
+        (second row)
+        (do (println "unknown example:" (pr-str nm))
+            (println "try one of:" (str/join ", " (map first examples)))
+            (System/exit 2))))
+
+    (defn run-in!
+      "Delegate to the standalone project's OWN bb.edn. Each example stays
+       runnable on its own; this is a convenience, not a second build system."
+      [nm task args]
+      (let [dir (dir-of nm)]
+        (println (str "==> " dir " : bb " task
+                      (when (seq args) (str " " (str/join " " args)))))
+        (apply p/shell {:dir dir} "bb" task args)))
+
+    (defn in-each!
+      "Run a task in every example, reporting each result rather than aborting
+       the sweep on the first failure."
+      [task args]
+      (let [results (mapv (fn [row]
+                            (let [dir (second row)
+                                  _ (println (str "\n==> " dir " : bb " task))
+                                  {:keys [exit]} (apply p/shell {:dir dir :continue true}
+                                                        "bb" task args)]
+                              [dir exit]))
+                          examples)]
+        (println "\n  summary")
+        (doseq [r results]
+          (println (format "  %-18s %s" (first r)
+                           (if (zero? (second r)) "ok" (str "FAILED exit " (second r))))))
+        (when (some (fn [r] (not (zero? (second r)))) results)
+          (System/exit 1)))))
+
+  info {:doc "What lives here and how to run it"
+        :task (do (println)
+                  (println "  raylib-pacman")
+                  (println "  One Pac-Man, four runtimes, each a standalone project.")
+                  (println)
+                  (doseq [row examples]
+                    (println (format "  bb %-10s %-18s %-12s %s"
+                                     (nth row 4) (second row) (nth row 2) (nth row 3))))
+                  (println)
+                  (println "  run one")
+                  (println "    bb jank                  play it")
+                  (println "    bb jank 10               quit after 10 game-seconds")
+                  (println "    bb play jank 3 out.png 76  quit after 3, capture frame 76")
+                  (println)
+                  (println "  run all")
+                  (println "    bb run-all [secs]        cycle every example, a demo reel")
+                  (println "    bb check-all             compile or load every example")
+                  (println "    bb shot-all              capture a PNG from each")
+                  (println "    bb doctor-all            check every toolchain")
+                  (println "    bb demos                 refresh docs/demos/*.png")
+                  (println)
+                  (println "  Each directory also stands alone:")
+                  (println "    cd jank-example && bb info")
+                  (println))}
+
+  ;; --- run one -------------------------------------------------------------
+
+  ;; Named `play` rather than `run`, and `clj` rather than `clojure`, because
+  ;; both of those are bb built-ins and shadowing one warns on every call.
+  play {:doc "Run one example by name: bb play <name> [secs] [shot] [frame]"
+        :task (let [args *command-line-args*]
+                (if (empty? args)
+                  (do (println "usage: bb play <name> [secs] [shot.png] [frame]")
+                      (println "names:" (str/join ", " (map first examples)))
+                      (System/exit 2))
+                  (run-in! (first args) "pacman" (rest args))))}
+
+  babashka {:doc "Run the babashka example"
+            :task (run-in! "babashka" "pacman" *command-line-args*)}
+
+  clj {:doc "Run the Clojure example"
+       :task (run-in! "clojure" "pacman" *command-line-args*)}
+
+  jank {:doc "Run the jank example"
+        :task (run-in! "jank" "pacman" *command-line-args*)}
+
+  jolt {:doc "Run the jolt example"
+        :task (run-in! "jolt" "pacman" *command-line-args*)}
+
+  ;; --- run all -------------------------------------------------------------
+
+  run-all {:doc "Cycle every example for N seconds each (default 10)"
+           :task (let [secs (or (first *command-line-args*) "10")]
+                   (in-each! "pacman" [secs]))}
+
+  check-all {:doc "Compile or load every example"
+             :task (in-each! "check" [])}
+
+  shot-all {:doc "Run each example for 3 seconds and capture a PNG"
+            :task (in-each! "shot" [])}
+
+  doctor-all {:doc "Check every toolchain"
+              :task (in-each! "doctor" [])}
+
+  demos {:doc "Refresh docs/demos/*.png from a live run of each example"
+         :task (do (p/shell "mkdir" "-p" "docs/demos")
+                   (doseq [row examples]
+                     (let [dir (second row)
+                           png (str (second row) ".png")]
+                       (println (str "\n==> " dir))
+                       (apply p/shell {:dir dir :continue true}
+                              "bb" ["pacman" "4" png "140"])
+                       (p/shell {:continue true}
+                                "sh" "-c" (str "mv -f " dir "/" png " docs/demos/" png))))
+                   (p/shell "sh" "-c" "ls -la docs/demos/"))}}}

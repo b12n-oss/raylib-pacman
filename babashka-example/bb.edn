@@ -1,0 +1,36 @@
+{:paths ["src"]
+
+ :tasks
+ {:init (def runner (or (System/getenv "BB_RUNNER") "bb"))
+
+  info {:doc "Every task in this example, grouped"
+        :task (do (println)
+                  (println "  raylib-pacman / babashka-example")
+                  (println "  raylib called from babashka over babashka.ffi")
+                  (println)
+                  (println "  bb pacman           run it, window stays open")
+                  (println "  bb pacman 10        run it, quit after 10 seconds")
+                  (println "  bb shot             run headless-ish, write pacman.png")
+                  (println "  bb check            load every namespace, no window")
+                  (println "  bb doctor           check bb, libraylib and the FFI path")
+                  (println))}
+
+  pacman {:doc "Pac-Man with the classic ghost personalities"
+          :requires ([raylib-pacman.pacman :as pacman])
+          :task (apply pacman/-main *command-line-args*)}
+
+  shot {:doc "Run for 3 seconds and write pacman.png on frame 60"
+        :requires ([raylib-pacman.pacman :as pacman])
+        :task (pacman/-main "3" "pacman.png")}
+
+  check {:doc "Load every namespace without opening a window"
+         :task (do (require (quote raylib-pacman.pacman))
+                   (println "OK  raylib-pacman.pacman loaded, libraylib resolved"))}
+
+  doctor {:doc "Check bb, libraylib and the FFI path"
+          :requires ([babashka.ffi :as ffi])
+          :task (do (println "bb        " (System/getProperty "babashka.version"))
+                    (println "libraylib " (str (:path (ffi/load-system-library "raylib"))))
+                    (println)
+                    (println "If libraylib is missing: brew install raylib (macOS)")
+                    (println "or install your distro's raylib 6.0+ package."))}}}

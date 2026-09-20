@@ -1,0 +1,18 @@
+{;; jolt.ffi/write takes the value BEFORE the offset as of jolt 0.8.0, and the
+ ;; two spellings are both integers, so an older runtime writes to the wrong
+ ;; place rather than failing. Declare the floor so it refuses instead.
+ :jolt/min-version "0.8.0"
+
+ :paths ["src"]
+
+ ;; The raylib bindings live in the lib/ subtree of jlt-commons/raylib-jlt, so
+ ;; the coordinate needs :deps/root alongside the pin. :jolt/native for
+ ;; libraylib is declared there and inherited here, which is why this file says
+ ;; nothing about where libraylib lives. Install it yourself:
+ ;;   brew install raylib          (macOS)
+ ;;   your distro's raylib package (Linux), 6.0 or newer
+ :deps {net.b12n/raylib {:git/url "https://github.com/jlt-commons/raylib-jlt"
+                         :git/sha "4a2c43682b9acc310c3fd97f27c220eea5e1b176"
+                         :deps/root "lib"}}
+
+ :aliases {:pacman {:main-opts ["-m" "raylib-pacman.pacman"]}}}

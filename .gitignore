@@ -1,0 +1,20 @@
+# build output
+target/
+.cpcache/
+.jolt/
+.lsp/
+.clj-kondo/.cache/
+
+# agent instruction symlinks live in the planning store, not in git
+/CLAUDE.md
+/AGENTS.md
+
+# nrepl handshake files, written and removed per run
+.nrepl-port
+NREPL.lock
+REPL.lock
+
+# screenshots a run drops next to the example; the committed ones live in docs/
+*/pacman.png
+*/probe.png
+*/mouth-*.png

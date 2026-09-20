@@ -1,0 +1,30 @@
+{:tasks
+ {:requires ([babashka.process :as p])
+
+  info {:doc "Every task in this example, grouped"
+        :task (do (println)
+                  (println "  raylib-pacman / clojure-example")
+                  (println "  raylib called from Clojure over raylib-clj (coffi / Panama)")
+                  (println)
+                  (println "  bb pacman           run it, window stays open")
+                  (println "  bb pacman 10        run it, quit after 10 seconds")
+                  (println "  bb shot             run 3s, write pacman.png")
+                  (println "  bb check            load the namespace, no window")
+                  (println "  bb doctor           check the JDK and libraylib")
+                  (println))}
+
+  pacman {:doc "Pac-Man with the classic ghost personalities"
+          :task (apply p/shell "clojure" "-M:pacman" *command-line-args*)}
+
+  shot {:doc "Run for 3 seconds and write pacman.png on frame 60"
+        :task (p/shell "clojure" "-M:pacman" "3" "pacman.png")}
+
+  check {:doc "Load the namespace without opening a window"
+         :task (p/shell "clojure" "-M:check")}
+
+  doctor {:doc "Check the JDK and libraylib"
+          :task (do (p/shell {:continue true} "sh" "-c"
+                             "printf 'java       '; java -version 2>&1 | head -1")
+                    (println "           Panama needs JDK 22 or newer.")
+                    (p/shell {:continue true} "sh" "-c"
+                             "printf 'libraylib  '; ls /opt/homebrew/lib/libraylib.dylib 2>/dev/null || ldconfig -p 2>/dev/null | grep -m1 libraylib || echo 'NOT FOUND - brew install raylib'"))}}}

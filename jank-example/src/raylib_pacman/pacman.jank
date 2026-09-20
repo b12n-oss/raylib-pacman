@@ -1,0 +1,652 @@
+(ns raylib-pacman.pacman
+  "Pac-Man on raylib, called from jank over its cpp/ interop.
+
+  Run it with `lein run --disable-sandbox`, or `bb pacman`. Arrows or WASD
+  steer, ENTER restarts after GAME OVER.
+
+  The ghosts keep the personalities the 1980 original gave them, which is where
+  the game's character comes from. Blinky heads for Pac-Man's tile. Pinky aims
+  four tiles AHEAD of him, to cut him off. Inky reflects Blinky's tile through a
+  point two tiles ahead of Pac-Man, which is why he seems to change his mind.
+  Clyde chases until he is within eight tiles, then breaks for his corner. They
+  alternate scatter and chase on a timer, and turn blue while a power pellet is
+  in effect.
+
+  The whole world is one immutable map threaded through the loop. `step` reads
+  input and returns the next state, and nothing under it draws. Movement is the
+  part worth reading: a turn is BUFFERED on the keypress and applied at the next
+  tile centre where it is legal, because deciding a direction anywhere but a
+  centre is what lets an entity drift into a wall.
+
+  Four things are specific to this port, each measured rather than assumed:
+
+  - A jank fn may not RETURN a native value, and a raylib Color is one. Colours
+    therefore travel as packed jank ints and the Color is built inline at each
+    draw call, which is a position jank does allow.
+  - `case` does not compile here when its result arms are integers. It fails
+    inside clojure/core.jank naming neither the form nor the file, so every
+    dispatch below is a `cond`.
+  - `mod` returns a REAL, unlike `quot`. Anything used as an index or handed to
+    a C int parameter goes through `int` first.
+  - There is no JVM, so no Math/*, no parse-long and no System/currentTimeMillis.
+    C math arrives via math.h and the clock via GetTime."
+  (:include "raylib.h" "rlgl.h" "math.h"))
+
+(def ^:const PI 3.141592653589793)
+
+(defn deg [rad] (* rad (/ 180.0 PI)))
+
+;; --- colour ------------------------------------------------------------------
+;; GetColor reads 0xRRGGBBAA, so that is the packing. Every draw call below
+;; resolves one of these ints to a native Color at the argument position.
+
+(defn rgba
+  [r g b a]
+  (bit-or (bit-shift-left r 24) (bit-shift-left g 16) (bit-shift-left b 8) a))
+
+(def BACKGROUND (rgba 6 6 14 255))
+(def WALL (rgba 33 33 222 255))
+(def WALL-EDGE (rgba 20 20 130 255))
+(def PELLET (rgba 255 224 40 255))
+(def LABEL (rgba 240 240 245 255))
+(def DOOR (rgba 255 184 174 255))
+(def PUPIL (rgba 20 20 60 255))
+(def SCARED (rgba 40 60 230 255))
+(def OVER (rgba 255 90 80 255))
+
+(def BLINKY (rgba 255 60 50 255))
+(def PINKY (rgba 255 160 200 255))
+(def INKY (rgba 90 220 240 255))
+(def CLYDE (rgba 255 170 60 255))
+
+;; --- the raylib surface, wrapped so no native value crosses a fn boundary ----
+
+(defn rect!
+  [x y w h c]
+  (cpp/DrawRectangle (cpp/int (int x)) (cpp/int (int y))
+                     (cpp/int (int w)) (cpp/int (int h))
+                     (cpp/GetColor (cpp/uint32_t c)))
+  nil)
+
+(defn circle!
+  [x y r c]
+  (cpp/DrawCircle (cpp/int (int x)) (cpp/int (int y))
+                  (cpp/float (+ 0.0 r))
+                  (cpp/GetColor (cpp/uint32_t c)))
+  nil)
+
+(defn sector!
+  "A filled pie slice. raylib measures from the positive x axis with y growing
+  downward, so 0 points right and the angle increases clockwise on screen, and
+  it expects end > start."
+  [cx cy r start-deg end-deg segments c]
+  (cpp/DrawCircleSector (cpp/Vector2 (cpp/float (+ 0.0 cx)) (cpp/float (+ 0.0 cy)))
+                        (cpp/float (+ 0.0 r))
+                        (cpp/float (+ 0.0 start-deg))
+                        (cpp/float (+ 0.0 end-deg))
+                        (cpp/int (int segments))
+                        (cpp/GetColor (cpp/uint32_t c)))
+  nil)
+
+(defn text!
+  [s x y size c]
+  (cpp/DrawText s (cpp/int (int x)) (cpp/int (int y)) (cpp/int (int size))
+                (cpp/GetColor (cpp/uint32_t c)))
+  nil)
+
+(defn text-width [s size] (int (cpp/MeasureText s (cpp/int (int size)))))
+
+;; --- the maze ----------------------------------------------------------------
+;; # wall, . dot, o power pellet, - ghost-house door, P pac-man start,
+;; G ghost start. Row 10 has open ends: those are the side tunnels.
+
+(def maze
+  ["###################"
+   "#........#........#"
+   "#o##.###.#.###.##o#"
+   "#.................#"
+   "#.##.#.#####.#.##.#"
+   "#....#...#...#....#"
+   "####.###.#.###.####"
+   "#....#.......#....#"
+   "#.##.#.##-##.#.##.#"
+   "#.##...#GGG#...##.#"
+   ".....#.#GGG#.#....."
+   "#.##...#####...##.#"
+   "#.##.#...#...#.##.#"
+   "#....#.#####.#....#"
+   "####.#...#...#.####"
+   "#o.......P.......o#"
+   "#.###.#######.###.#"
+   "#...#....#....#...#"
+   "###.#.##.#.##.#.###"
+   "#.................#"
+   "###################"])
+
+(def MW (count (first maze)))
+(def MH (count maze))
+
+;; --- screen geometry ---------------------------------------------------------
+
+(def ^:const CELL 30)
+(def ^:const OX 20)
+(def ^:const OY 70)
+(def W (+ (* MW CELL) (* 2 OX)))
+(def H (+ (* MH CELL) OY 30))
+
+(defn px [gx] (+ OX (* gx CELL)))
+(defn py [gy] (+ OY (* gy CELL)))
+
+;; --- reading the maze --------------------------------------------------------
+
+(defn tile-at
+  "The maze character at x,y. x wraps, which is the side tunnel; anything above
+  or below the maze reads as wall. `mod` answers a real here, so the column is
+  narrowed to an int before it indexes the row."
+  [x y]
+  (if (or (< y 0) (>= y MH))
+    \#
+    (nth (nth maze y) (int (mod x MW)))))
+
+(defn wall?
+  "Blocked for Pac-Man: walls and the ghost-house door."
+  [x y]
+  (let [c (tile-at x y)]
+    (or (= \# c) (= \- c))))
+
+(defn ghost-wall?
+  "Blocked for a ghost: walls only, so a ghost can pass its own door."
+  [x y]
+  (= \# (tile-at x y)))
+
+(defn find-tile
+  [ch]
+  (first (for [y (range MH)
+               x (range MW)
+               :when (= ch (tile-at x y))]
+           [x y])))
+
+(def pac-start (or (find-tile \P) [9 15]))
+(def door (or (find-tile \-) [9 8]))
+;; The tile just outside the door: where a ghost heads for on its way out.
+(def door-exit [(first door) (dec (second door))])
+
+(def house-tiles
+  (vec (for [y (range MH)
+             x (range MW)
+             :when (= \G (tile-at x y))]
+         [x y])))
+
+;; The top row of the house, one slot per ghost.
+(def house-slots
+  (vec (filter (fn [t] (= (second (first house-tiles)) (second t))) house-tiles)))
+
+(defn initial-dots
+  []
+  (into #{} (for [y (range MH)
+                  x (range MW)
+                  :when (let [c (tile-at x y)] (or (= \. c) (= \o c)))]
+              [x y])))
+
+(defn centre-of [t] [(+ 0.5 (first t)) (+ 0.5 (second t))])
+
+;; --- state -------------------------------------------------------------------
+
+(def ghost-specs
+  [[:blinky BLINKY [(dec MW) 0] -1 0.0]
+   [:pinky PINKY [0 0] 0 1.5]
+   [:inky INKY [(dec MW) (dec MH)] 1 3.5]
+   [:clyde CLYDE [0 (dec MH)] 2 5.5]])
+
+(defn initial-ghosts
+  []
+  (mapv (fn [spec]
+          (let [slot (nth spec 3)
+                start (if (neg? slot) door-exit (nth house-slots slot))
+                c (centre-of start)]
+            {:name (nth spec 0)
+             :color (nth spec 1)
+             :scatter (nth spec 2)
+             :x (first c)
+             :y (second c)
+             :dx 0
+             :dy -1
+             :frightened 0.0
+             :home-timer (nth spec 4)}))
+        ghost-specs))
+
+(defn initial-pac
+  []
+  (let [c (centre-of pac-start)]
+    ;; dx/dy is the current heading, ndx/ndy the BUFFERED turn, fx/fy the last
+    ;; non-zero heading, which is where the mouth points while stopped.
+    {:x (first c)
+     :y (second c)
+     :dx -1
+     :dy 0
+     :ndx -1
+     :ndy 0
+     :fx -1
+     :fy 0
+     :mouth 0.0}))
+
+(defn new-game
+  "A fresh world. With `previous`, score and lives carry over and the level
+  advances, which is the between-levels reset."
+  [previous]
+  {:pac (initial-pac)
+   :ghosts (initial-ghosts)
+   :dots (initial-dots)
+   :score (if previous (:score previous) 0)
+   :lives (if previous (:lives previous) 3)
+   :level (if previous (inc (:level previous)) 1)
+   :mode-timer 7.0
+   :chase? false
+   :combo 0
+   :message nil
+   :message-timer 0.0
+   :cleared? false
+   :over? false
+   :clock 0.0})
+
+;; --- movement ----------------------------------------------------------------
+
+(defn tile-of [v] (int (cpp/floor (+ 0.0 v))))
+
+(defn step-entity
+  "Advance an entity by speed*dt, deciding its direction only at tile centres.
+
+  `e` is {:x :y :dx :dy}; `decide` is (fn [tx ty dx dy] -> [dx dy]) called when
+  the step reaches the centre of the current tile, and a blocked or zero choice
+  stops there; `walls?` is the entity's own blocking predicate. Returns
+  {:x :y :dx :dy}."
+  [e speed dt decide walls?]
+  (let [x (:x e)
+        y (:y e)
+        dx (:dx e)
+        dy (:dy e)
+        dist (* speed dt)
+        cx (+ 0.5 (tile-of x))
+        cy (+ 0.5 (tile-of y))
+        to-centre (+ (* dx (- cx x)) (* dy (- cy y)))]
+    (if (and (>= to-centre -1.0e-9) (<= to-centre dist))
+      (let [tx (tile-of cx)
+            ty (tile-of cy)
+            nd (decide tx ty dx dy)
+            ndx (first nd)
+            ndy (second nd)
+            leftover (- dist to-centre)]
+        (if (or (and (zero? ndx) (zero? ndy))
+                (walls? (+ tx ndx) (+ ty ndy)))
+          {:x cx :y cy :dx ndx :dy ndy}
+          {:x (mod (+ cx (* ndx leftover)) MW)
+           :y (+ cy (* ndy leftover))
+           :dx ndx
+           :dy ndy}))
+      {:x (mod (+ x (* dx dist)) MW)
+       :y (+ y (* dy dist))
+       :dx dx
+       :dy dy})))
+
+(def ^:const PAC-SPEED 5.6)
+
+(defn move-pac
+  [pac dt]
+  (let [ndx (:ndx pac)
+        ndy (:ndy pac)
+        decide (fn [tx ty dx dy]
+                 (cond
+                   ;; The buffered turn wins whenever it is possible here.
+                   (and (or (not= ndx dx) (not= ndy dy))
+                        (not (wall? (+ tx ndx) (+ ty ndy))))
+                   [ndx ndy]
+                   (not (wall? (+ tx dx) (+ ty dy))) [dx dy]
+                   :else [0 0]))
+        moved (step-entity pac PAC-SPEED dt decide wall?)
+        moving? (not (and (zero? (:dx moved)) (zero? (:dy moved))))]
+    (merge pac moved
+           {:fx (if moving? (:dx moved) (:fx pac))
+            :fy (if moving? (:dy moved) (:fy pac))
+            :mouth (+ (:mouth pac) (* dt (if moving? 9.0 0.0)))})))
+
+(defn ghost-target
+  "The classic personalities, in tile coordinates. `cond`, not `case`: see the
+  namespace docstring."
+  [g pac ghosts]
+  (let [nm (:name g)
+        x (:x pac)
+        y (:y pac)
+        fx (:fx pac)
+        fy (:fy pac)
+        ptx (tile-of x)
+        pty (tile-of y)]
+    (cond
+      (= :blinky nm) [ptx pty]
+      (= :pinky nm) [(+ ptx (* 4 fx)) (+ pty (* 4 fy))]
+      (= :inky nm) (let [b (first (filter (fn [o] (= :blinky (:name o))) ghosts))
+                         ax (+ ptx (* 2 fx))
+                         ay (+ pty (* 2 fy))]
+                     [(- (* 2 ax) (tile-of (:x b)))
+                      (- (* 2 ay) (tile-of (:y b)))])
+      :else (let [d (+ (cpp/fabs (- (:x g) x)) (cpp/fabs (- (:y g) y)))]
+              (if (> d 8) [ptx pty] (:scatter g))))))
+
+(defn ghost-choose-dir
+  "At a tile centre, the direction that gets closest to the target without
+  reversing. Reversing is forbidden in the original too, which is what makes a
+  ghost commit to a route. A frightened ghost picks at random instead."
+  [tx ty dx dy target frightened?]
+  (let [opts (vec (for [d [[0 -1] [-1 0] [0 1] [1 0]]
+                        :let [ndx (first d) ndy (second d)]
+                        :when (and (not (and (= ndx (- dx)) (= ndy (- dy))))
+                                   (not (ghost-wall? (+ tx ndx) (+ ty ndy))))]
+                    [ndx ndy]))
+        ;; A dead end leaves nothing but the reversal.
+        opts (if (seq opts) opts [[(- dx) (- dy)]])]
+    (if frightened?
+      (rand-nth opts)
+      (let [gx (first target)
+            gy (second target)]
+        (apply min-key
+               (fn [d]
+                 (let [ax (+ tx (first d))
+                       ay (+ ty (second d))]
+                   (+ (* (- ax gx) (- ax gx)) (* (- ay gy) (- ay gy)))))
+               opts)))))
+
+(def ^:const GHOST-SPEED 4.6)
+(def ^:const GHOST-SPEED-SCARED 3.1)
+
+(defn move-ghost
+  [g pac ghosts chase? dt]
+  (if (pos? (:home-timer g))
+    ;; Waiting inside the house until released.
+    (assoc g :home-timer (- (:home-timer g) dt))
+    (let [g (assoc g :frightened (max 0.0 (- (:frightened g) dt)))
+          frightened? (pos? (:frightened g))
+          target (if chase? (ghost-target g pac ghosts) (:scatter g))
+          decide (fn [tx ty dx dy]
+                   ;; Still inside the house: head for the door first.
+                   (ghost-choose-dir tx ty dx dy
+                                     (if (= \G (tile-at tx ty)) door-exit target)
+                                     frightened?))
+          speed (if frightened? GHOST-SPEED-SCARED GHOST-SPEED)]
+      (merge g (step-entity g speed dt decide ghost-wall?)))))
+
+;; --- game rules --------------------------------------------------------------
+
+(defn eat
+  [s]
+  (let [pac (:pac s)
+        tx (tile-of (:x pac))
+        ty (tile-of (:y pac))]
+    (if-not (contains? (:dots s) [tx ty])
+      s
+      (let [pellet? (= \o (tile-at tx ty))
+            s (assoc s
+                     :dots (disj (:dots s) [tx ty])
+                     :score (+ (:score s) (if pellet? 50 10)))]
+        ;; A pellet frightens every ghost and restarts the eat-combo, which is
+        ;; what makes 200/400/800/1600 possible.
+        (if pellet?
+          (assoc s
+                 :combo 0
+                 :ghosts (mapv (fn [g] (assoc g :frightened 7.0)) (:ghosts s)))
+          s)))))
+
+(defn caught-by-ghost
+  [s]
+  (let [lives (dec (:lives s))]
+    (if (pos? lives)
+      (assoc s
+             :lives lives
+             :message "CAUGHT!"
+             :message-timer 1.2
+             :pac (initial-pac)
+             :ghosts (initial-ghosts))
+      (assoc s :lives 0 :over? true :message "GAME OVER"))))
+
+(defn eat-ghost
+  [s i g]
+  (let [combo (inc (:combo s))
+        h (centre-of (nth house-slots 1))]
+    (assoc s
+           ;; 200, 400, 800, 1600 within one pellet.
+           :score (+ (:score s) (* 200 (bit-shift-left 1 (dec combo))))
+           :combo combo
+           :ghosts (assoc (:ghosts s) i
+                          (merge g {:x (first h)
+                                    :y (second h)
+                                    :dx 0
+                                    :dy -1
+                                    :frightened 0.0
+                                    :home-timer 1.5})))))
+
+(defn collide
+  [s]
+  (let [pac (:pac s)]
+    (reduce (fn [s i]
+              (let [g (nth (:ghosts s) i)
+                    d (+ (cpp/fabs (- (:x g) (:x pac)))
+                         (cpp/fabs (- (:y g) (:y pac))))]
+                (cond
+                  (> d 0.75) s
+                  (pos? (:frightened g)) (eat-ghost s i g)
+                  :else (caught-by-ghost s))))
+            s
+            (range (count (:ghosts s))))))
+
+(def ^:const SCATTER-SECONDS 20.0)
+(def ^:const CHASE-SECONDS 7.0)
+
+(defn advance-mode
+  "Scatter and chase alternate on a timer, as in the original."
+  [s dt]
+  (let [t (- (:mode-timer s) dt)]
+    (if (pos? t)
+      (assoc s :mode-timer t)
+      (assoc s
+             :chase? (not (:chase? s))
+             :mode-timer (if (:chase? s) CHASE-SECONDS SCATTER-SECONDS)))))
+
+(defn read-input
+  "Buffer a steering direction; `step-entity` applies it at the next legal tile
+  centre. ENTER restarts once the game is over."
+  [s]
+  (let [dir (cond
+              (or (cpp/IsKeyDown cpp/KEY_LEFT) (cpp/IsKeyDown cpp/KEY_A)) [-1 0]
+              (or (cpp/IsKeyDown cpp/KEY_RIGHT) (cpp/IsKeyDown cpp/KEY_D)) [1 0]
+              (or (cpp/IsKeyDown cpp/KEY_UP) (cpp/IsKeyDown cpp/KEY_W)) [0 -1]
+              (or (cpp/IsKeyDown cpp/KEY_DOWN) (cpp/IsKeyDown cpp/KEY_S)) [0 1]
+              :else nil)]
+    (cond
+      (and (:over? s) (cpp/IsKeyPressed cpp/KEY_ENTER)) (new-game nil)
+      (some? dir) (assoc s :pac (assoc (:pac s) :ndx (first dir) :ndy (second dir)))
+      :else s)))
+
+(defn step
+  "One frame: read input, advance the world, and answer the next state. dt is
+  clamped so a stalled frame cannot step an entity through a wall."
+  [s]
+  (let [s (read-input s)
+        dt (min 0.05 (+ 0.0 (cpp/GetFrameTime)))
+        s (assoc s :clock (+ (:clock s) dt))]
+    (cond
+      (:over? s) s
+      ;; The LEVEL CLEARED message shows for its two seconds, then the reset.
+      (and (:cleared? s) (zero? (:message-timer s))) (new-game s)
+      :else
+      (let [s (assoc s :message-timer (max 0.0 (- (:message-timer s) dt)))
+            s (if (zero? (:message-timer s)) (assoc s :message nil) s)
+            s (advance-mode s dt)
+            s (assoc s :pac (move-pac (:pac s) dt))
+            s (eat s)
+            pac (:pac s)
+            chase? (:chase? s)
+            gs (:ghosts s)
+            s (assoc s :ghosts (mapv (fn [g] (move-ghost g pac gs chase? dt)) gs))
+            s (collide s)]
+        (if (empty? (:dots s))
+          (assoc s :message "LEVEL CLEARED" :message-timer 2.0 :cleared? true)
+          s)))))
+
+;; --- drawing -----------------------------------------------------------------
+
+(defn draw-maze!
+  [dots blink?]
+  (dotimes [y MH]
+    (dotimes [x MW]
+      (let [c (tile-at x y)
+            sx (px x)
+            sy (py y)]
+        (cond
+          (= \# c)
+          (do (rect! sx sy CELL CELL WALL-EDGE)
+              (rect! (+ sx 3) (+ sy 3) (- CELL 6) (- CELL 6) WALL))
+          (= \- c)
+          (rect! sx (+ sy (quot CELL 2) -2) CELL 4 DOOR)
+          :else nil))))
+  (doseq [d dots]
+    ;; Power pellets are bigger and blink; plain dots do neither.
+    (let [x (first d)
+          y (second d)
+          pellet? (= \o (tile-at x y))]
+      (when (or (not pellet?) blink?)
+        (circle! (+ (px x) (quot CELL 2))
+                 (+ (py y) (quot CELL 2))
+                 (if pellet? 7.0 3.0)
+                 PELLET))))
+  nil)
+
+(defn heading-deg
+  "The heading (fx, fy) as a DrawCircleSector angle. raylib measures from the
+  positive x axis with y growing downward, so 0 points right and the angle
+  increases clockwise, which makes this plain atan2 with no quarter-turn."
+  [fx fy]
+  (deg (cpp/atan2 (+ 0.0 fy) (+ 0.0 fx))))
+
+(defn draw-pac!
+  [pac]
+  ;; The mouth is the wedge the sector does NOT cover: sweep from its far lip
+  ;; clockwise all the way round to its near one. It opens and closes as :mouth
+  ;; advances, which only happens while Pac-Man is moving.
+  (let [open (deg (* 0.42 (+ 1.0 (cpp/sin (+ 0.0 (:mouth pac))))))
+        from (+ (heading-deg (:fx pac) (:fy pac)) open)]
+    (sector! (px (:x pac))
+             (py (:y pac))
+             (* 0.46 CELL)
+             from
+             (+ from (- 360.0 (* 2.0 open)))
+             28
+             PELLET))
+  nil)
+
+(defn draw-ghost!
+  [g blink?]
+  (let [cx (int (px (:x g)))
+        cy (int (py (:y g)))
+        r (int (* 0.44 CELL))
+        color (cond
+                (and (pos? (:frightened g)) blink?) LABEL
+                (pos? (:frightened g)) SCARED
+                :else (:color g))]
+    ;; A dome over a body, with three feet along the bottom.
+    (circle! cx (- cy 2) (+ 0.0 r) color)
+    (rect! (- cx r) (- cy 2) (* 2 r) (+ r 2) color)
+    (dotimes [i 3]
+      (circle! (+ (- cx r) (* i r) (quot r 2))
+               (+ cy r)
+               (/ (+ 0.0 r) 2.6)
+               color))
+    ;; The eyes look along the direction of travel; a frightened ghost has none.
+    (let [ex (int (* 4 (:dx g)))
+          ey (int (* 4 (:dy g)))]
+      (circle! (- cx 5) (- cy 5) 5.0 LABEL)
+      (circle! (+ cx 5) (- cy 5) 5.0 LABEL)
+      (when-not (pos? (:frightened g))
+        (circle! (+ (- cx 5) ex) (+ (- cy 5) ey) 2.5 PUPIL)
+        (circle! (+ cx 5 ex) (+ (- cy 5) ey) 2.5 PUPIL))))
+  nil)
+
+(defn draw-hud!
+  [s]
+  (text! (str "SCORE " (:score s)) 20 20 28 LABEL)
+  (text! (str "LEVEL " (:level s)) (- W 340) 20 28 LABEL)
+  (dotimes [i (:lives s)]
+    (circle! (+ (- W 150) (* i 34)) 33 11.0 PELLET))
+  (let [m (:message s)]
+    (when (some? m)
+      ;; MeasureText is how a scalar API centres text: ask, then place.
+      (let [size 46]
+        (text! m
+               (quot (- W (text-width m size)) 2)
+               (- (quot H 2) 24)
+               size
+               (if (:over? s) OVER PELLET)))))
+  nil)
+
+(defn draw-state!
+  [s]
+  (cpp/ClearBackground (cpp/GetColor (cpp/uint32_t BACKGROUND)))
+  (draw-maze! (:dots s) (< (mod (:clock s) 0.4) 0.25))
+  (draw-pac! (:pac s))
+  (doseq [g (:ghosts s)]
+    (draw-ghost! g (< (mod (:clock s) 0.25) 0.12)))
+  (draw-hud! s)
+  nil)
+
+;; --- the loop ----------------------------------------------------------------
+
+(defn maybe-screenshot!
+  "Dump one PNG on frame `at`, which is visual proof a frame rendered with
+  nobody at the keyboard. raylib defers batched geometry until EndDrawing, so
+  the batch is flushed first or the capture misses everything drawn this frame.
+  raylib resolves the path against the working directory fixed at InitWindow,
+  so pass a basename."
+  [shot-path frame at]
+  (when (and (some? shot-path) (= frame at))
+    (cpp/rlDrawRenderBatchActive)
+    (cpp/TakeScreenshot shot-path)
+    (println "[raylib-pacman] SHOT" shot-path))
+  nil)
+
+(defn -main
+  "With no argument the window stays open until you close it. `seconds` quits on
+  a deadline and `shot` writes one PNG at frame `shot-frame` (default 60), which
+  is what makes the example runnable unattended.
+
+    lein run --disable-sandbox                    play it
+    lein run --disable-sandbox 10                 quit after ten seconds
+    lein run --disable-sandbox 3 out.png 75       quit after three, capture 75
+
+  TextToInteger stands in for parse-long, which has no JVM to come from. It
+  answers 0 for anything unparseable, and 0 seconds means no deadline anyway.
+
+  `seconds` counts GAME time, summed from the clamped per-frame dt, not wall
+  time from GetTime. jank compiles a fn the first time it is called, so frame 0
+  pays for the whole draw path at once and takes about six seconds on this
+  machine; every frame after it runs at a steady 60 FPS. A wall clock charges
+  that one-time warm-up against the deadline and quits before frame 2. The game
+  clock does not, because dt is clamped to 0.05 before it is added."
+  [& args]
+  (let [secs (if (first args) (int (cpp/TextToInteger (first args))) 0)
+        shot-path (second args)
+        at (if (nth args 2 nil) (int (cpp/TextToInteger (nth args 2 nil))) 60)]
+    (cpp/InitWindow (cpp/int W) (cpp/int H) "jank cpp/ interop - pac-man")
+    (cpp/SetTargetFPS 60)
+    (let [final (loop [frame 0
+                       s (new-game nil)]
+                  ;; A native bool belongs straight in an `if`, which is the
+                  ;; form jank is happiest with.
+                  (if (cpp/WindowShouldClose)
+                    s
+                    (let [s2 (step s)]
+                      (cpp/BeginDrawing)
+                      (draw-state! s2)
+                      (maybe-screenshot! shot-path frame at)
+                      (cpp/EndDrawing)
+                      (if (and (pos? secs) (> (:clock s2) secs))
+                        s2
+                        (recur (inc frame) s2)))))]
+      (cpp/CloseWindow)
+      (println "final score:" (:score final) "level:" (:level final)))))

@@ -1,0 +1,32 @@
+{:paths ["src"]
+
+ ;; raylib-clj binds raylib through coffi, which sits on the JDK's Panama FFI.
+ ;; coffi, insn and clojure itself arrive transitively from that dependency.
+ ;; The shared library is NOT bundled: install it yourself with
+ ;;   brew install raylib          (macOS)
+ ;;   your distro's raylib package (Linux), 6.0 or newer
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        io.github.b12n-oss/raylib-clj
+        {:git/url "https://github.com/b12n-oss/raylib-clj"
+         :git/sha "5404ec049ff2d036fcf219d309b2b5a09706cfb5"}}
+
+ :aliases
+ {;; Three JVM flags are load-bearing and none of them are optional:
+  ;;   --enable-native-access  Panama refuses a downcall without it
+  ;;   -XstartOnFirstThread    macOS puts GLFW's event loop on thread 0
+  ;;   -Djava.library.path     where to find libraylib
+  ;; On Linux drop -XstartOnFirstThread; it is a macOS-only flag and the JVM
+  ;; rejects it outright as "Unrecognized option" elsewhere.
+  :pacman
+  {:jvm-opts ["--enable-native-access=ALL-UNNAMED"
+              "-XstartOnFirstThread"
+              "-Djava.library.path=/opt/homebrew/opt/raylib/lib:/opt/homebrew/lib:/usr/local/lib:/usr/lib"]
+   :main-opts ["-m" "raylib-pacman.pacman"]}
+
+  ;; Headless load gate: requires the namespace so every binding links against
+  ;; libraylib, without ever calling -main. No window opens.
+  :check
+  {:jvm-opts ["--enable-native-access=ALL-UNNAMED"
+              "-XstartOnFirstThread"
+              "-Djava.library.path=/opt/homebrew/opt/raylib/lib:/opt/homebrew/lib:/usr/local/lib:/usr/lib"]
+   :main-opts ["-e" "(require,'raylib-pacman.pacman)(println,\"OK  raylib-pacman.pacman loaded\")"]}}}
