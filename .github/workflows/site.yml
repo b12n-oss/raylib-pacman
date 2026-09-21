@@ -7,16 +7,18 @@ name: Site
 # The engine is pinned to a tag rather than tracking its main branch, so a
 # change over there cannot break these docs without someone choosing it.
 #
-# MANUAL ONLY, ON PURPOSE. This repo is private, and a private repo is billed
-# for every Actions minute, so there is no push or pull_request trigger here.
-# Those get restored deliberately if and when the repo goes public.
+# PUBLISHING IS OFF. The deploy job is gated on the PUBLISH_SITE repository
+# variable, which does not exist, AND on GitHub Pages being enabled on this
+# repo, which it is not. Both must change before anything is served anywhere.
+# The repo being public does not imply either: enabling Pages is its own
+# decision, made deliberately, not a consequence of the source being readable.
 #
-# PUBLISHING IS OFF as well. The deploy job is gated on the PUBLISH_SITE
-# repository variable, which does not exist, and GitHub Pages is not enabled on
-# this repo. Both must change for anything to be served, and enabling Pages is
-# its own decision rather than something going public implies.
+# So what runs below is the build and its checks. Nothing leaves the runner.
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
