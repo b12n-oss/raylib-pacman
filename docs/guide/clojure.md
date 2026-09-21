@@ -46,9 +46,10 @@ port is plain data:
 ```
 
 Compare that with the babashka and jolt ports, which pack the same four bytes
-into an integer because their FFI moves scalars only. The Clojure port never
-has to think about byte order, and it is also the only one that can call
-`DrawCircleSector` without a second thought.
+into an integer. They could describe the struct as this one does, so the packing
+buys a register-sized argument and no map per call rather than working around a
+limit. What the Clojure port really gets is not having to think about byte order
+at all.
 
 The cost is at the call: coffi wants the declared primitive, so a `::mem/float`
 parameter gets `(float ...)` and a `::mem/int` gets `(int ...)`. Passing a

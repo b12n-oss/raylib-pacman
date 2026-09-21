@@ -48,12 +48,19 @@ a consumer inherits the lookup rather than restating it. This is the tidiest of
 the four on that point. The Clojure port needs `-Djava.library.path` in its
 launcher, and babashka resolves by name at runtime.
 
-## Scalars only, same as babashka
+## Packed colours, and a fan that is a choice
 
-`jolt.ffi` moves scalars, not structs by value. So a `Color` is packed into an
-integer, and `DrawCircleSector` is unreachable because its centre is a
-`Vector2`. The wrapper fills that gap with its own `sector!`, built as an rlgl
-triangle fan, and the game calls that.
+A `Color` is packed into an integer here, the same as in the babashka port, and
+for the same good reason: a four-byte all-integer struct rides in one register,
+so the packed `:uint` is the bytes the ABI wanted anyway.
+
+`DrawCircleSector` is a different matter. This page used to call it unreachable
+because its centre is a `Vector2` by value. `jolt.ffi` does pass structs by
+value, with `[:by-value [:struct ...]]` on the parameter and a pointer to an
+allocated layout buffer as the argument, and the call renders correctly on jolt
+0.8.10, checked on 2026-09-21. The wrapper's own `sector!` is an rlgl triangle
+fan, the game calls that, and it is a choice inherited from the original rather
+than a gap being filled.
 
 The wrapper also takes keyword-style arguments throughout, which is why the draw
 calls above read as maps rather than positional argument lists. That is a choice

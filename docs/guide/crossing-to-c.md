@@ -21,22 +21,28 @@ of the others fall out of it.
 
 ## What each one will not carry
 
-Every FFI here moves scalars. They diverge on aggregates, and raylib is a
-library whose API is full of small structs passed by value.
+Every FFI here moves scalars, and all four also carry small structs by value.
+They diverge on what that costs to write, and raylib is a library whose API is
+full of small structs passed by value, so the difference shows up constantly.
 
 **`Color` is four bytes.** raylib takes it by value in every draw call.
 
 - coffi describes the struct, so raylib-clj hands it over as `{:r :g :b :a}` and
   you never think about it.
-- `babashka.ffi` and `jolt.ffi` move scalars, so both pack the same four bytes
-  into one integer and pass a `:uint`. This is not a trick. It is the identical
-  memory the ABI would have pushed, spelled differently.
+- `babashka.ffi` and `jolt.ffi` can both describe the struct, and both ports
+  still pack the same four bytes into one integer and pass a `:uint`. That is
+  not a workaround. A four-byte all-integer struct travels in a single register
+  on AArch64 and x86-64, so the packed `:uint` is the identical memory the ABI
+  would have pushed, spelled more cheaply.
 - jank can pass one, because the C++ compiler knows the type. What it cannot do
   is let a jank fn *return* one.
 
 **`Vector2` is eight bytes**, and `DrawCircleSector` takes its centre by value.
-Here babashka and jolt simply cannot make the call, which forces a different
-implementation of Pac-Man himself. That is [its own
+All four can make this call. `babashka.ffi` takes the struct as a map,
+`jolt.ffi` marks the parameter `:by-value` and takes a pointer to a layout
+buffer, and both were run to a rendered frame on 2026-09-21 to confirm it. The
+babashka and jolt ports draw Pac-Man as an rlgl triangle fan anyway, which they
+inherited from the original rather than being forced into. That is [its own
 page](drawing-pac-man.md).
 
 ## The constraint that shapes the jank port

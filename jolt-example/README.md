@@ -44,11 +44,16 @@ Declaring the floor makes it refuse instead.
 
 ## What this port has to do differently
 
-`jolt.ffi` moves scalars, not structs passed by value. A `Color` is packed into
-one integer, and `DrawCircleSector` is unreachable because its centre is a
-`Vector2` by value. The wrapper's `sector!` fills that gap by emitting an rlgl
-triangle fan, and Pac-Man is one: a sweep from the far lip of his mouth round to
-the near one, leaving the mouth as the wedge it never covers.
+A `Color` is packed into one integer here. `jolt.ffi` could describe the struct,
+but a four-byte all-integer struct rides in a single register anyway, so the
+packed `:uint` is the same bytes for less work per call.
+
+`DrawCircleSector` is reachable too, contrary to what this file used to say:
+mark the parameter `[:by-value [:struct [[:x :float] [:y :float]]]]` and pass a
+pointer to an allocated layout buffer, and it draws the wedge on jolt 0.8.10.
+The port uses the wrapper's `sector!` instead, an rlgl triangle fan inherited
+from the original: a sweep from the far lip of his mouth round to the near one,
+leaving the mouth as the wedge it never covers.
 
 **The angle convention is the trap worth knowing.** `sector!` puts zero at the
 top and increases clockwise, so right is 90 degrees. Raw raylib puts zero at the

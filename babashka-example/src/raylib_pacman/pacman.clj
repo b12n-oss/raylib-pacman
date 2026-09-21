@@ -27,18 +27,21 @@
   applied at the next tile centre where it is legal, because deciding a
   direction anywhere but a centre is what lets an entity drift into a wall.
 
-  Two things are specific to this port. babashka.ffi passes scalars, so a
-  raylib Color travels as one packed uint rather than a struct, and
-  DrawCircleSector is out of reach because its Vector2 centre is by value.
-  Pac-Man is therefore an rlgl triangle fan built by hand: a full circle with
-  the mouth wedge left out."
+  Two things are specific to this port, and neither is forced by the FFI.
+  babashka.ffi does pass structs by value, so both are choices. A raylib Color
+  travels as one packed uint, because a four-byte all-integer struct rides in
+  one register anyway and packing saves a map per call. And Pac-Man is an rlgl
+  triangle fan built by hand, a full circle with the mouth wedge left out,
+  which is what the original example did."
   (:require [babashka.ffi :as ffi :refer [defcfn]]))
 
 (ffi/load-system-library "raylib")
 
 ;; --- the raylib surface this game needs --------------------------------------
-;; Every parameter here is a scalar. A Color is a packed uint (see `rgba`),
-;; which is the layout raylib's own Color struct has in memory.
+;; Every parameter here is a scalar, by choice rather than necessity: a Color
+;; is a packed uint (see `rgba`), which is the layout raylib's own Color struct
+;; has in memory and the form the ABI passes it in. babashka.ffi can describe
+;; the struct instead, with [:struct [[:r :uint8] ...]].
 
 (defcfn init-window "InitWindow" [:int :int :string] :void)
 (defcfn close-window "CloseWindow" [] :void)
@@ -556,8 +559,9 @@
 (defn draw-pac!
   "Pac-Man as an rlgl triangle fan.
 
-  DrawCircleSector would be the obvious call, but its centre is a Vector2 by
-  value and babashka.ffi passes scalars only. A fan is the same picture one
+  DrawCircleSector is the obvious call, and babashka.ffi can make it: bind the
+  centre as [:struct [[:x :float] [:y :float]]] and hand it {:x :y}. This port
+  keeps the fan the original example used, which is the same picture one
   level down: sweep from the far lip of the mouth all the way round to the
   near one, so the wedge that is never covered IS the mouth. Angles are
   radians here, measured from the positive x axis, and y grows downward, so

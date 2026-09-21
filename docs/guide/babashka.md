@@ -51,10 +51,15 @@ predicates wrap it:
 
 ## Pac-Man is a triangle fan
 
-`DrawCircleSector` takes a `Vector2` centre by value, which this FFI will not
-pass, so Pac-Man is emitted through rlgl instead: `rlBegin`, a run of
-`rlVertex2f` sweeping from the far lip of the mouth round to the near one, then
-`rlEnd`. [drawing-pac-man.md](drawing-pac-man.md) has the detail, including why
+Pac-Man is emitted through rlgl: `rlBegin`, a run of `rlVertex2f` sweeping from
+the far lip of the mouth round to the near one, then `rlEnd`.
+
+This page used to say `DrawCircleSector` was out of reach because its `Vector2`
+centre is by value. That was wrong. `babashka.ffi` passes structs by value, and
+binding the call with `[:struct [[:x :float] [:y :float]]]` and handing it a
+plain map renders the wedge, confirmed on babashka 1.13.220 on 2026-09-21. The
+fan is what the original example did and what this port kept, not a limit of
+the FFI. [drawing-pac-man.md](drawing-pac-man.md) has the detail, including why
 the example calls `rlDisableBackfaceCulling` once at startup.
 
 ## What it is good at

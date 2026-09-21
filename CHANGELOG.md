@@ -29,6 +29,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Corrected the claim that `babashka.ffi` and `jolt.ffi` move scalars only and
+  therefore cannot call `DrawCircleSector`. Both pass structs by value, and both
+  make that call correctly: babashka binds the centre as
+  `[:struct [[:x :float] [:y :float]]]` and passes a map, jolt marks the
+  parameter `:by-value` and passes a pointer to a layout buffer. Each was run to
+  a rendered frame on 2026-09-21 against babashka 1.13.220 and jolt 0.8.10. The
+  two ports keep the rlgl triangle fan, which they inherited from the original
+  example rather than being forced into, and the docs now say so in the README,
+  both example READMEs, five guide pages and the babashka source. Reported by
+  Michiel Borkent (@borkdude).
 - All four ports read raylib's key queue (`GetKeyPressed`) alongside the held
   key state. `IsKeyDown` and `IsKeyPressed` read polled state, so a press
   shorter than one frame was invisible to both; the queue records it. A quick

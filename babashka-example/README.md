@@ -28,15 +28,19 @@ quickest way to tell a missing library from a wrong one.
 
 ## What this port has to do differently
 
-`babashka.ffi` moves scalars across the boundary, not structs. Two consequences
-run through the whole file.
+`babashka.ffi` passes structs by value as well as scalars, so neither of the
+choices below is forced. Both are worth knowing anyway.
 
-A raylib `Color` is four bytes. Rather than pass the struct, `rgba` packs those
-same four bytes into one integer and every draw call takes a `:uint`. This is
-not a trick so much as the identical memory the ABI would have pushed anyway.
+A raylib `Color` is four bytes. Rather than describe the struct, `rgba` packs
+those same four bytes into one integer and every draw call takes a `:uint`. A
+four-byte all-integer struct travels in a single register, so this is the
+identical memory the ABI would have pushed, and it saves building a map per
+call.
 
-`DrawCircleSector` is out of reach, because its centre is a `Vector2` by value.
-Pac-Man is therefore built one level down, as an rlgl triangle fan: `rlBegin`,
+`DrawCircleSector` is reachable here, contrary to what this file used to say.
+Binding it as `[:struct [[:x :float] [:y :float]]]` and passing `{:x :y}` draws
+the wedge on babashka 1.13.220. The port keeps the original's approach and
+builds Pac-Man one level down, as an rlgl triangle fan: `rlBegin`,
 a run of `rlVertex2f` calls sweeping from the far lip of the mouth round to the
 near one, then `rlEnd`. The wedge the fan never covers is the mouth. Because the
 fan emits centre, rim, rim, half its triangles wind against raylib's culling

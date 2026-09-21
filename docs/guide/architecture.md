@@ -87,14 +87,17 @@ C](crossing-to-c.md) covers the third, which is where all four diverge.
 One question explains most of them: what will this FFI move across the
 boundary?
 
-| | Structs by value | Consequence |
+| | Structs by value | What this port does with that |
 |---|---|---|
-| coffi / Panama | yes, as maps | `Color` is `{:r :g :b :a}`, `DrawCircleSector` is directly callable |
+| coffi / Panama | yes, as maps | `Color` is `{:r :g :b :a}`, `DrawCircleSector` called directly |
 | jank `cpp/` | yes, but a fn may not RETURN one | colours travel as packed ints, rebuilt inline at each call |
-| `babashka.ffi` | no, scalars only | colour packed into a uint, Pac-Man hand-rolled from rlgl triangles |
-| `jolt.ffi` | no, scalars only | same, via the wrapper's own `sector!` |
+| `babashka.ffi` | yes, as maps | colour packed into a uint anyway, Pac-Man hand-rolled from rlgl triangles |
+| `jolt.ffi` | yes, `:by-value` plus a layout buffer | same, via the wrapper's own `sector!` |
 
-Everything else in the drawing layer follows from that row.
+Note the right-hand column says what each port does, not what its FFI allows.
+All four can pass a struct by value, and the bottom two choose the packed int
+and the triangle fan regardless, which is a smaller difference than this table
+used to claim. The jank row is the only hard constraint in it.
 
 ## Documentation
 

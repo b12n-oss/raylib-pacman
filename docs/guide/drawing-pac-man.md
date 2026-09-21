@@ -23,7 +23,7 @@ The heading comes from `:fx`/`:fy`, the last *non-zero* direction, rather than
 from the current one. A stopped Pac-Man keeps facing where he was going instead
 of snapping back to a default.
 
-## Two implementations, because two FFIs cannot make the call
+## Two implementations, and only one of them is forced
 
 `DrawCircleSector` takes its centre as a `Vector2` by value.
 
@@ -31,8 +31,35 @@ of snapping back to a default.
 `{:x :y}`. jank has the real header, so `(cpp/Vector2 (cpp/float x)
 (cpp/float y))` built inline at the argument position is a legal `Vector2`.
 
-**babashka and jolt cannot.** Both FFIs move scalars, so both drop one level and
-emit the same shape by hand as an rlgl triangle fan:
+**babashka and jolt draw a triangle fan instead, but not because they have to.**
+An earlier version of this page said both FFIs move scalars only and therefore
+could not reach the call. That was wrong, and
+[Michiel Borkent pointed it out](https://github.com/babashka/ffi): both pass
+structs by value, and both make this exact call. Verified on 2026-09-21 against
+babashka 1.13.220 and jolt 0.8.10, each rendering the wedge to a screenshot:
+
+```clojure
+;; babashka.ffi takes the struct as a plain map
+(defcfn draw-circle-sector "DrawCircleSector"
+  [[:struct [[:x :float] [:y :float]]] :float :float :float :int
+   [:struct [[:r :uint8] [:g :uint8] [:b :uint8] [:a :uint8]]]] :void)
+(draw-circle-sector {:x 100.0 :y 100.0} 70.0 40.0 320.0 32
+                    {:r 255 :g 255 :b 0 :a 255})
+```
+
+```clojure
+;; jolt.ffi marks the parameter :by-value and takes a pointer to a layout buffer
+(ffi/defcfn draw-circle-sector "DrawCircleSector"
+  [[:by-value [:struct [[:x :float] [:y :float]]]] :float :float :float :int :uint]
+  :void)
+(ffi/with-arena [a]
+  (draw-circle-sector (v2->ptr! a 100.0 75.0) 55.0 40.0 320.0 32 0xFF00FFFF))
+```
+
+So the fan is a technique these two ports inherited from the original, not a
+wall they ran into. It is kept here because it is what the original does, it
+renders identically, and it is worth reading in its own right. Both ports drop
+one level and emit the same shape by hand:
 
 ```clojure
 (rl-begin RL-TRIANGLES)
@@ -47,8 +74,9 @@ emit the same shape by hand as an rlgl triangle fan:
 ```
 
 Which is, near enough, what `DrawCircleSector` does internally. rlgl is
-raylib's own immediate-mode layer and takes scalars throughout, so it is the
-escape hatch whenever a by-value struct is in the way.
+raylib's own immediate-mode layer and takes scalars throughout, so it stays a
+useful escape hatch for anything an FFI genuinely will not carry. It just is not
+needed for this particular call.
 
 One consequence is easy to miss. The fan emits centre, rim, rim, so half its
 triangles wind the opposite way to raylib's front-facing order and get culled.

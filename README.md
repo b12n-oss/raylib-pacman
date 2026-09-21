@@ -88,17 +88,21 @@ copies.
 
 **Colour.** raylib's `Color` is a four-byte struct passed by value. raylib-clj
 hands it over as a plain `{:r :g :b :a}` map. jolt and babashka both pack it
-into a single integer instead, because their FFI moves scalars rather than
-structs. jank could pass one too, but a jank fn may not *return* a native value,
-so colours travel as packed ints and the `Color` is rebuilt inline at every draw
-call, which is a position jank does allow.
+into a single integer instead, which costs nothing: a four-byte all-integer
+struct rides in one register on both ABIs, so the packed int is the same memory
+under a cheaper spelling. jank could pass one too, but a jank fn may not
+*return* a native value, so colours travel as packed ints and the `Color` is
+rebuilt inline at every draw call, which is a position jank does allow.
 
 **Pac-Man himself.** He is a circle with a wedge missing, and there are two ways
 to get one. The Clojure and jank ports call `DrawCircleSector` and sweep from
 the far lip of the mouth all the way round to the near one, so the mouth is the
-part the sector never covers. babashka and jolt cannot: that call takes a
-`Vector2` centre by value, which neither FFI passes, so both drop one level down
-and emit the same shape as an rlgl triangle fan by hand.
+part the sector never covers. babashka and jolt drop one level down and emit the
+same shape as an rlgl triangle fan by hand. That is inherited from the original
+example rather than forced: both FFIs do pass structs by value and both make the
+`DrawCircleSector` call correctly, which
+[drawing-pac-man.md](docs/guide/drawing-pac-man.md) shows with the binding for
+each.
 
 **Angles.** raylib measures a sector from the positive x axis, and y grows
 downward, so zero points right and the angle increases clockwise on screen. That
