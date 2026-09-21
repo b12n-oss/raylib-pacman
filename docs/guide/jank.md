@@ -145,3 +145,15 @@ executable found`, which is not a jank error and never mentions jank. Every
 `lein` call in this example's `bb.edn` carries the flag.
 
 The first run compiles `raylib-sys` natively and takes a few minutes.
+
+## Credit
+
+The game is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)).
+This port descends from
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), by way of the babashka port
+in this repo. What changed on the way over is the drawing layer, plus the
+workarounds the page above describes.
+
+babashka/ffi is MIT licensed, and the notice lives in `NOTICE.md` at the root
+of the repository.

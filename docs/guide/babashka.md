@@ -69,8 +69,15 @@ simulation would notice.
 
 ## Credit
 
-This port began from the
-[`babashka/ffi` pacman example](https://github.com/babashka/ffi/blob/main/examples/pacman.clj),
-which already had the maze, the ghost personalities and the rlgl fan. The
-version here restructures it into a namespace with a pure `step`, to match the
-shape of the other three, and adds the unattended run arguments.
+This port began from
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), written by **Michiel
+Borkent** ([@borkdude](https://github.com/borkdude)). That example already had
+the maze, the ghost personalities and the rlgl fan, so the work here was
+restructuring it into a namespace with a pure `step` to match the shape of the
+other three, plus the unattended run arguments. The other three ports then came
+off this one, which makes his example the origin of all four.
+
+babashka/ffi is MIT licensed. The notice is reproduced in
+[NOTICE.md](https://github.com/b12n-oss/raylib-pacman/blob/main/NOTICE.md) at
+the root of the repository.

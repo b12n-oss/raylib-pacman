@@ -1,3 +1,12 @@
+;; Pac-Man, after Michiel Borkent's (@borkdude) examples/pacman.clj in
+;; babashka/ffi: https://github.com/babashka/ffi/blob/main/examples/pacman.clj
+;;
+;; That example is the original. The maze, the ghost personalities and the
+;; tile-centre movement rule are all his, and this file is a port of it, restructured
+;; into a namespace with a pure `step` and unattended run arguments.
+;; babashka/ffi is MIT licensed, Copyright (c) 2026 Michiel Borkent; see
+;; NOTICE.md at the root of this repository for the notice in full.
+
 (ns raylib-pacman.pacman
   "Pac-Man on raylib, called from babashka over babashka.ffi.
 

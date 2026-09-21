@@ -3,6 +3,13 @@
 This is the half that barely changes between runtimes. Read it once and the
 four ports all become the same file with a different bottom third.
 
+It is also the half that is not ours. Everything on this page came from
+**Michiel Borkent**'s ([@borkdude](https://github.com/borkdude))
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi): the maze, the ghost
+personalities, the tile-centre movement rule, the clamped dt. The four ports
+kept all of it and changed the layer underneath.
+
 ## One map, threaded
 
 There is no mutable game state. The world is a single immutable map, `step`

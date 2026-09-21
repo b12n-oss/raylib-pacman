@@ -95,3 +95,10 @@ This port is a close copy of the `pacman` example in
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt), with the
 repo's own smoke harness swapped for the standalone deadline and screenshot
 arguments the other three use.
+
+That example is itself a port, so the chain runs one step further back. The
+game originated as
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), by **Michiel Borkent**
+([@borkdude](https://github.com/borkdude)), and the twenty-one maze rows here
+are still byte-identical to his.

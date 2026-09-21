@@ -57,3 +57,15 @@ mouth sideways to his direction of travel while everything still compiles, still
 runs, and still looks like a Pac-Man. This port measures the heading as
 `atan2(fx, -fy)`; the jank and Clojure ports, which call raylib's own
 `DrawCircleSector`, use `atan2(fy, fx)`.
+
+## Credit
+
+The game is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)).
+This port descends from his
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), by way of the `pacman`
+example in [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt),
+which is itself a port of it.
+
+babashka/ffi is MIT licensed, and the notice is reproduced in
+[NOTICE.md](../NOTICE.md) at the root of this repository.

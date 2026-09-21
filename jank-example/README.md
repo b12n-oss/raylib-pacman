@@ -84,3 +84,14 @@ when you want to see what the code actually costs.
 The slow start is also why the deadline counts game time rather than wall time.
 A wall clock charges it against the deadline and quits before frame 2, which
 looks exactly like a game that does not work.
+
+## Credit
+
+The game is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)).
+This port descends from his
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), by way of the babashka port
+next door.
+
+babashka/ffi is MIT licensed, and the notice is reproduced in
+[NOTICE.md](../NOTICE.md) at the root of this repository.

@@ -44,3 +44,14 @@ order, so the example turns backface culling off once at startup.
 
 Everything above the drawing layer is ordinary Clojure and reads the same as the
 other three ports.
+
+## Credit
+
+The game is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)).
+This port began from his
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), which already had the maze,
+the ghosts and the rlgl fan. The other three ports here then came off this one.
+
+babashka/ffi is MIT licensed, and the notice is reproduced in
+[NOTICE.md](../NOTICE.md) at the root of this repository.

@@ -21,6 +21,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   draw Pac-Man, and one page per runtime, rendered by
   [docs-engine](https://github.com/jlt-commons/docs-engine).
 - EPL-2.0 licence.
+- `NOTICE.md`, crediting Michiel Borkent (@borkdude) as the author of the
+  original game and reproducing babashka/ffi's MIT notice. All four ports
+  descend from `examples/pacman.clj` in that repository, and the attribution
+  now says so in the README, in each example's own README, in the guide, and
+  at the top of all four source files.
 
 ### Fixed
 

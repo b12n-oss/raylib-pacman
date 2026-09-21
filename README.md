@@ -5,6 +5,12 @@ per Clojure-family runtime. Each directory is a standalone project you can copy
 out on its own and run with `bb`, and nothing here is shared between them on
 purpose.
 
+The game itself is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)):
+all four ports descend from his
+[`pacman.clj` example](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi). See
+[Credits](#credits) and [NOTICE.md](NOTICE.md).
+
 | Example | Runtime | Binding | Build file |
 |---|---|---|---|
 | [`babashka-example/`](babashka-example) | babashka | `babashka.ffi` | `bb.edn` |
@@ -151,17 +157,30 @@ involve.
 
 ## Licence
 
-Eclipse Public License 2.0. See [LICENSE](LICENSE).
+Eclipse Public License 2.0, in [LICENSE](LICENSE). The game this repository
+ports came from MIT-licensed work, and that notice is kept in
+[NOTICE.md](NOTICE.md) alongside the rest of the third-party attribution.
 
 ## Credits
 
-Pac-Man is Namco's, from 1980. The babashka port began from the
-[`babashka/ffi`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
-example, and the jolt port from the `pacman` example in
-[jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt). The jank
-project layout follows the
+**The game is Michiel Borkent's** ([@borkdude](https://github.com/borkdude)).
+All four ports here descend from his
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), which is where the maze, the
+ghost personalities, the tile-centre movement rule and the rlgl triangle fan
+came from. The twenty-one maze rows are byte-identical in every port here, so
+the lineage is easy to check for yourself. What this repository added is the
+other three runtimes, the drawing layer each of them needs, and the unattended
+run arguments. babashka/ffi is MIT licensed, and its notice is reproduced in
+[NOTICE.md](NOTICE.md).
+
+The jolt port arrived by way of the `pacman` example in
+[jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt), which is
+itself a port of the same original. The jank project layout follows the
 [raylib-sys example](https://github.com/jank-lang/commons/tree/main/raylib-sys/example)
 in jank's commons repo.
+
+Pac-Man is Namco's, from 1980.
 
 The animated previews were recorded with `screen-grab` over `cgevent`, internal
 b12n tools that are not public yet. Every GIF is committed, so nothing here

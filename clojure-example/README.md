@@ -66,3 +66,14 @@ are needed only by the unattended screenshot path. Rather than patch the
 library, the example declares them at the top of `pacman.clj` with coffi's
 `defcfn`. It is four lines, and it doubles as a worked example of extending the
 binding when you need a call it does not carry yet.
+
+## Credit
+
+The game is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)).
+This port descends from his
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), by way of the babashka port
+next door.
+
+babashka/ffi is MIT licensed, and the notice is reproduced in
+[NOTICE.md](../NOTICE.md) at the root of this repository.

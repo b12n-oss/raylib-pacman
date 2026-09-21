@@ -84,3 +84,15 @@ networking or a content pipeline, this is the one that would carry it.
 
 The cost is startup, which is JVM startup plus a git dependency to resolve on
 first run, and a JDK 22 floor that the other three do not have.
+
+## Credit
+
+The game is **Michiel Borkent**'s ([@borkdude](https://github.com/borkdude)).
+This port descends from
+[`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
+in [babashka/ffi](https://github.com/babashka/ffi), by way of the babashka port
+in this repo. What changed on the way over is the drawing layer, since coffi
+carries the structs that example had to pack by hand.
+
+babashka/ffi is MIT licensed, and the notice lives in `NOTICE.md` at the root
+of the repository.
