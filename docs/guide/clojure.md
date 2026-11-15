@@ -14,7 +14,8 @@ raylib's structs handed to it as ordinary Clojure data.
          :git/sha "5404ec049ff2d036fcf219d309b2b5a09706cfb5"}}}
 ```
 
-coffi, insn and Clojure arrive transitively. `libraylib` does not: it is a
+coffi and insn arrive transitively, and `deps.edn` declares Clojure 1.12.0
+beside it. `libraylib` does not: it is a
 system library, found through `java.library.path` at load time.
 
 ## Three JVM flags, none optional
@@ -71,7 +72,7 @@ library, the example declares them itself:
   [] ::mem/void)
 ```
 
-Four lines, no fork, and it doubles as a worked example of reaching a call the
+A few lines, no fork, and it doubles as a worked example of reaching a call the
 binding does not carry yet. This is an advantage of the describe-the-C
 approach: adding a function is a data declaration, not a build.
 
