@@ -64,7 +64,7 @@ it: `pac-start`, `door`, `house-slots` and the initial dot set all come from
 `find-tile` rather than from a second table that could drift out of step with
 the picture.
 
-Two details are load-bearing. Row 10 has open ends, which is the side tunnel,
+Two details need care. Row 10 has open ends, which is the side tunnel,
 and `tile-at` wraps `x` with `mod` so walking off one edge arrives at the other.
 Anything above or below the maze reads as wall, so no bounds check is needed
 anywhere else.
@@ -95,7 +95,7 @@ may only be chosen at the centre of a tile:
     ...))
 ```
 
-If a step would carry the entity past the centre, it stops there, asks `decide`
+If a step would move the entity past the centre, it stops there, asks `decide`
 for a new heading, and spends the remainder of the step on it. Deciding anywhere
 else lets an entity turn while straddling two tiles, and the corner it turns
 into is a wall. The `-1.0e-9` is there because floating point lands on the
@@ -159,8 +159,7 @@ which is `(* 200 (bit-shift-left 1 (dec combo)))`.
 (min 0.05 (get-frame-time))
 ```
 
-One line, and it is the difference between a stall being a hiccup and a stall
-being a bug. Without it a frame that takes half a second moves Pac-Man several
+One line, and it turns a stall from a bug into a hiccup. Without it a frame that takes half a second moves Pac-Man several
 tiles in a single step, straight through whatever was in the way, because the
 wall test only runs at tile centres and he skipped them all.
 

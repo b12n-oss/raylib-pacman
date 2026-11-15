@@ -30,10 +30,10 @@ full of small structs passed by value, so the difference shows up constantly.
 - coffi describes the struct, so raylib-clj hands it over as `{:r :g :b :a}` and
   you never think about it.
 - `babashka.ffi` and `jolt.ffi` can both describe the struct, and both ports
-  still pack the same four bytes into one integer and pass a `:uint`. That is
-  not a workaround. A four-byte all-integer struct travels in a single register
-  on AArch64 and x86-64, so the packed `:uint` is the identical memory the ABI
-  would have pushed, spelled more cheaply.
+  still pack the same four bytes into one integer and pass a `:uint`. A
+  four-byte all-integer struct travels in a single register on AArch64 and
+  x86-64, so the packed `:uint` is the identical memory the ABI would have
+  pushed, spelled more cheaply.
 - jank can pass one, because the C++ compiler knows the type. What it cannot do
   is let a jank fn *return* one.
 
@@ -67,16 +67,16 @@ do, and rebuilds the `Color` at each call site. Four small wrappers at the top
 of the file (`rect!`, `circle!`, `sector!`, `text!`) make that one place rather
 than forty.
 
-It is worth being precise about the rule, because the obvious summary of it is
-wrong. The problem is not that natives cannot be near jank values. It is the
-*return* position specifically, plus carrying one in `loop`/`recur` state.
+The rule is narrower than it sounds. Natives can sit next to jank values; the
+trouble is the *return* position specifically, plus holding one in
+`loop`/`recur` state.
 
 ## Numbers are not interchangeable either
 
 Each runtime has its own way of getting a Clojure number into a C parameter of a
 given width, and each one fails differently when you get it wrong.
 
-**jank** is the strictest, and two of its rules cost real time here.
+**jank** is the strictest, and two of its rules cost a lot of time here.
 
 `mod` and `rem` return reals; `quot` does not. Measured:
 
@@ -122,7 +122,7 @@ Every dispatch in the jank port is a `cond` for this reason, including the one
 choosing each ghost's target. The other three ports use `case` there and are
 fine.
 
-The general lesson is more useful than the specific bug. When a jank build fails
+When a jank build fails
 inside `clojure/core.jank` rather than inside your own file, the cause is a
 construct in your code that expanded into something core could not type, and
 bisecting your own file is the only way to find it. A probe namespace with one

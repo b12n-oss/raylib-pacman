@@ -36,9 +36,9 @@ A raylib `Color` is a four-byte struct by value. Rather than pass the struct,
   (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left a 24)))
 ```
 
-Note the order. This packing is the `Color` struct's own layout in memory, `r`
-first at the lowest byte, which is what the ABI would have pushed. It is not the
-same as raylib's `GetColor`, which reads `0xRRGGBBAA` from the other end. The
+The order matters. This packing is the `Color` struct's own layout in memory,
+`r` first at the lowest byte, which is what the ABI would have pushed. It
+differs from raylib's `GetColor`, which reads `0xRRGGBBAA` from the other end. The
 jank port uses that one instead, and the two look similar enough to swap by
 accident and produce a picture in the wrong colours.
 

@@ -88,8 +88,8 @@ since none of them produce an error.
 
 It does not catch anything about input. Nothing here has been steered by a test
 and nothing can be: synthetic key events do not actuate a raylib window. The
-honest claim for these captures is "it renders correctly", never "it plays
-correctly". Steering, the buffered turn, and the ghost chase all still need a
+captures show that it renders correctly. They say nothing about whether it plays
+correctly. Steering, the buffered turn, and the ghost chase all still need a
 person.
 
 It also will not catch a bug that takes longer than the capture to appear. Three
@@ -109,8 +109,8 @@ gallery and this guide all build with no capture toolchain installed at all.
 The manifest is committed for the same reason a build script is, to say how the
 previews were made rather than to leave them as artifacts nobody can reproduce.
 
-One finding from that work belongs here rather than in the manifest, because it
-is about raylib and not about the recorder. See
+One finding from that work concerns raylib, so it lives here and not in the
+manifest. See
 [the-game.md](the-game.md) for where it landed in the code.
 
 A synthetic keystroke has no duration. `IsKeyDown` and `IsKeyPressed` both read

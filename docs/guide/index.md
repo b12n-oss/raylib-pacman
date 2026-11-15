@@ -1,8 +1,7 @@
 # Guide
 
 Four ports of the same game, one per Clojure-family runtime, kept side by side
-so the differences are readable. The game itself is a pretext. What the repo is
-actually for is showing what changes when the same Clojure crosses into C four
+so the differences are readable. The game itself is a pretext. The repo exists to show what changes when the same Clojure crosses into C four
 different ways, and what does not.
 
 New here? [getting-started.md](getting-started.md) gets one of the four on
@@ -32,7 +31,7 @@ And when you want to change something:
 
 | Page | What it covers |
 |---|---|
-| [contributing.md](contributing.md) | The gate, why a rendered frame is one of them, and how to add a runtime. |
+| [contributing.md](contributing.md) | The check, why a rendered frame is one of them, and how to add a runtime. |
 
 Each example directory also carries its own `README.md`, which is the short
 operational version: how to run it, what it needs installed, what bites.

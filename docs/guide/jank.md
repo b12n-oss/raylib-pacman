@@ -44,7 +44,7 @@ call:
   nil)
 ```
 
-Note the packing is `0xRRGGBBAA`, because that is what raylib's `GetColor`
+The packing is `0xRRGGBBAA`, because that is what raylib's `GetColor`
 reads. The babashka and jolt ports pack the other way round, matching the
 struct's own byte order. The two are easy to confuse and the symptom is a
 picture in the wrong colours rather than an error.
@@ -54,7 +54,7 @@ one place instead of forty.
 
 ## `case` does not compile with integer arms
 
-This one cost the most time, so it is worth stating plainly:
+This one cost the most time, so here it is in full:
 
 ```clojure
 (case :pinky :blinky 1 :pinky 2 3)
@@ -115,7 +115,7 @@ about 6.3 seconds for the first twenty frames, then a steady 0.34 seconds per
 twenty, which is 60 FPS exactly. Six game-seconds of play took 19.6 seconds of
 wall clock.
 
-The tempting conclusion is that this is what jank costs. It is not. The same
+The tempting conclusion is that this is what jank costs. The same
 code, run as the AOT binary `lein` leaves in `target/debug/`, reaches a window
 in about a second and plays six game-seconds in 6.4 of wall clock. No warm-up
 is measurable at all:
@@ -126,7 +126,7 @@ lein run --disable-sandbox 6     6 game-seconds took 19.6s wall
 ```
 
 So `lein run` is the convenient dev path and the slow one, and the binary it
-produces is the honest measure of the language. The recorded preview uses the
+produces is the better measure of the language. The recorded preview uses the
 binary for exactly this reason.
 
 It still broke the deadline, which is why every port counts game time rather

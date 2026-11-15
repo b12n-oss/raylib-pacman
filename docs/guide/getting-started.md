@@ -69,8 +69,7 @@ bb pacman 3 out.png 76     # quit after three, capture frame 76 to out.png
 ```
 
 The seconds are game time, not wall time. [Running
-unattended](running-unattended.md) explains why that distinction earns its
-keep.
+unattended](running-unattended.md) explains why.
 
 ## Check everything at once
 

@@ -27,9 +27,8 @@ Clojure-looking:
 rather than at the root. Leave it off and you get the example suite instead of
 the library.
 
-`:jolt/min-version "0.8.0"` is a real guard, not boilerplate. `jolt.ffi/write`
-took its value and offset the other way round before 0.8.0, and both spellings
-are integers, so an older runtime writes to the wrong place rather than
+`:jolt/min-version "0.8.0"` matters because `jolt.ffi/write` took its value and
+offset the other way round before 0.8.0, and both spellings are integers, so an older runtime writes to the wrong place rather than
 failing. Declaring the floor makes it refuse instead of misbehaving.
 
 ## The native lookup comes with the dependency
@@ -59,12 +58,11 @@ because its centre is a `Vector2` by value. `jolt.ffi` does pass structs by
 value, with `[:by-value [:struct ...]]` on the parameter and a pointer to an
 allocated layout buffer as the argument, and the call renders correctly on jolt
 0.8.10, checked on 2026-09-21. The wrapper's own `sector!` is an rlgl triangle
-fan, the game calls that, and it is a choice inherited from the original rather
-than a gap being filled.
+fan, the game calls that, and the choice comes from the original.
 
 The wrapper also takes keyword-style arguments throughout, which is why the draw
-calls above read as maps rather than positional argument lists. That is a choice
-of the binding, not something jolt requires.
+calls above read as maps rather than positional argument lists. That is the
+binding's choice, and jolt does not require it.
 
 ## The angle convention is the trap
 
@@ -84,7 +82,7 @@ use `atan2(fy, fx)`.
 Copying a `heading-deg` from one port to another therefore compiles, runs,
 draws a Pac-Man, and points his mouth sideways to his direction of travel with
 no error anywhere. It is the single most transferable warning in this repo, and
-[drawing-pac-man.md](drawing-pac-man.md) covers how to actually check it.
+[drawing-pac-man.md](drawing-pac-man.md) covers how to check it.
 
 ## What it is good at
 

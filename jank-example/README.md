@@ -70,7 +70,7 @@ Under `lein run`, frame 0 pays for the whole draw path at once. On an M1 Pro
 that is about 6.3 seconds for the first twenty frames, after which it holds a
 steady 60 FPS (20 frames per 0.34s).
 
-That is the dev path, not the language. The AOT binary Leiningen leaves behind
+That is the dev path and says nothing about the language. The AOT binary Leiningen leaves behind
 has no measurable warm-up:
 
 ```sh
