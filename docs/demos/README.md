@@ -6,7 +6,7 @@ One animated preview per port, all four running the same game. Every GIF here is
 
 ### babashka-example
 
-raylib over babashka.ffi. Colours packed into a uint and Pac-Man emitted as an rlgl triangle fan, because this FFI moves scalars rather than structs.
+raylib over babashka.ffi. Colours packed into a uint and Pac-Man emitted as an rlgl triangle fan, as the original example did, although this FFI can pass structs by value.
 
 ![babashka-example](babashka-example.gif)
 

@@ -37,7 +37,7 @@ The project layout follows the
 [raylib-sys example](https://github.com/jank-lang/commons/tree/main/raylib-sys/example)
 in jank's commons repo: `project.clj` with `lein-jank` as a plugin and
 middleware, sources under `src/`, and debug and release profiles that differ
-only in optimization level.
+only in target directory and optimization level.
 
 ## Four things this port had to work around
 

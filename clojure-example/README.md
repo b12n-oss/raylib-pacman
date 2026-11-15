@@ -50,8 +50,8 @@ raylib-clj maps the structs to plain Clojure data, so a `Color` is
 `{:r :g :b :a}` and a `Vector2` is `{:x :y}`. That makes `DrawCircleSector`
 directly callable, and Pac-Man is one: a pie slice running from the far lip of
 his mouth round to the near one, so the mouth is the wedge the sector leaves
-out. The babashka and jolt ports have to hand-roll the same shape from triangles
-because their FFI will not pass a `Vector2` by value.
+out. The babashka and jolt ports hand-roll the same shape from triangles, as the
+original example did, although both FFIs can pass a `Vector2` by value.
 
 One thing is worth knowing about the angle. raylib measures a sector from the
 positive x axis and y grows downward, so zero points right and the angle
@@ -64,7 +64,7 @@ puts zero at the top.
 raylib-clj does not bind `TakeScreenshot` or `rlDrawRenderBatchActive`, and both
 are needed only by the unattended screenshot path. Rather than patch the
 library, the example declares them at the top of `pacman.clj` with coffi's
-`defcfn`. It is four lines, and it doubles as a worked example of extending the
+`defcfn`. It is a few lines, and it doubles as a worked example of extending the
 binding when you need a call it does not carry yet.
 
 ## Credit

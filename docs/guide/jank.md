@@ -137,12 +137,13 @@ than wall time. See [running-unattended.md](running-unattended.md).
 The project layout follows the
 [raylib-sys example](https://github.com/jank-lang/commons/tree/main/raylib-sys/example)
 in jank's commons repo: `project.clj` with `lein-jank` as plugin and middleware,
-and debug and release profiles differing only in optimization level.
+and debug and release profiles differing only in target directory and optimization level.
 
 **`--disable-sandbox` is required on macOS.** There is no `bwrap`, so the native
 build must run unsandboxed. Without it the build aborts with `No 'bwrap'
 executable found`, which is not a jank error and never mentions jank. Every
-`lein` call in this example's `bb.edn` carries the flag.
+`lein run` and `lein jank compile` call in this example's `bb.edn` carries the
+flag.
 
 The first run compiles `raylib-sys` natively and takes a few minutes.
 

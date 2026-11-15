@@ -76,7 +76,7 @@ produces something like `<base>//tmp/x.png`, which fails with a warning **and a
 zero exit code**.
 
 Every example here passes a basename and lets the file land next to the project.
-The root `bb demos` task moves them into `docs/demos/` afterwards.
+The root `bb shots` task moves them into `docs/demos/` afterwards.
 
 ## What this catches, and what it does not
 
@@ -134,7 +134,7 @@ From the repository root:
 bb check-all      # compile or load all four
 bb shot-all       # run each for 3 seconds, capture a PNG
 bb run-all 10     # cycle all four as a demo reel
-bb demos          # refresh docs/demos/*.png
+bb shots          # refresh docs/demos/*.png
 ```
 
 Each of those delegates to the example's own `bb.edn` rather than
