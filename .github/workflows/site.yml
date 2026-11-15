@@ -33,7 +33,7 @@ concurrency:
 env:
   # v0.3.2 fixes `jolt run build`/`clean` (docs-engine#3); v0.3.1 added
   # heading anchors.
-  DOCS_ENGINE_REF: v0.3.2
+  DOCS_ENGINE_REF: v0.4.6
   BASE_PATH: /raylib-pacman
 
 jobs:
