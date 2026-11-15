@@ -37,7 +37,7 @@ not have to say where `libraylib` is: `lib/deps.edn` declares `:jolt/native` for
 it, jolt resolves a dependency's native candidates against the declaring root,
 and a consumer inherits the lookup.
 
-The `:jolt/min-version "0.8.0"` line is load-bearing. `jolt.ffi/write` took its
+The `:jolt/min-version "0.8.0"` line guards against a silent bug. `jolt.ffi/write` took its
 value and offset the other way round before 0.8.0, and both spellings are
 integers, so an older runtime writes to the wrong place rather than failing.
 Declaring the floor makes it refuse instead.

@@ -1,6 +1,6 @@
 # Drawing Pac-Man
 
-Pac-Man is a circle with a wedge missing. It is the only genuinely interesting
+Pac-Man is a circle with a wedge missing. It is the only interesting
 shape in the game, and it is drawn two different ways here for a reason that has
 nothing to do with taste.
 
@@ -56,8 +56,8 @@ babashka 1.13.220 and jolt 0.8.10, each rendering the wedge to a screenshot:
   (draw-circle-sector (v2->ptr! a 100.0 75.0) 55.0 40.0 320.0 32 0xFF00FFFF))
 ```
 
-So the fan is a technique these two ports inherited from the original, not a
-wall they ran into. It is kept here because it is what the original does, it
+So the fan is a technique these two ports inherited from the original, and no
+wall in either FFI forced it. It is kept here because it is what the original does, it
 renders identically, and it is worth reading in its own right. Both ports drop
 one level and emit the same shape by hand:
 
@@ -75,18 +75,16 @@ one level and emit the same shape by hand:
 
 Which is, near enough, what `DrawCircleSector` does internally. rlgl is
 raylib's own immediate-mode layer and takes scalars throughout, so it stays a
-useful escape hatch for anything an FFI genuinely will not carry. It just is not
-needed for this particular call.
+useful escape hatch for anything an FFI cannot pass. This particular call does
+not need it.
 
-One consequence is easy to miss. The fan emits centre, rim, rim, so half its
+The fan emits centre, rim, rim, so half its
 triangles wind the opposite way to raylib's front-facing order and get culled.
 The babashka port calls `rlDisableBackfaceCulling` once at startup; the jolt
 wrapper's `sector!` handles it by emitting rim, centre, rim instead. Either
 fixes it. Neither is obvious from a blank screen.
 
 ## The angle convention, which breaks silently
-
-This is the part worth slowing down for.
 
 **raylib** measures a sector from the positive x axis, and screen y grows
 downward. So zero points **right** and the angle increases **clockwise** on
@@ -132,4 +130,4 @@ for f in 66 76 86; do bb pacman 3 "mouth-$f.png" "$f"; done
 
 At frame 66 he was a closed circle, at 76 the mouth was open and pointing left,
 and at 86 it was wide open and still pointing left. He starts moving left, so
-left is correct, and three frames prove what one could not.
+left is correct.

@@ -18,10 +18,9 @@ bb check-all
 That compiles or loads all four ports. It is fast for three of them and slower
 for jank, which builds natively. Never commit red.
 
-There is no unit-test suite, and that is a deliberate limit rather than an
-oversight. The game is a window: there is no assertion worth writing about
+There is no unit-test suite, and that is deliberate. The game is a window: there is no assertion worth writing about
 whether Pac-Man looks right, and synthetic clicks do not actuate a raylib
-window at all. So the second gate is a rendered frame that somebody looks at:
+window at all. So the second check is a rendered frame that somebody looks at:
 
 ```sh
 bb shot-all                       # a PNG from each port

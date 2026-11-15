@@ -3,7 +3,7 @@
 `clojure-example/` calls raylib through
 [raylib-clj](https://github.com/b12n-oss/raylib-clj), which binds it with
 [coffi](https://github.com/IGJoshua/coffi) over the JDK's Panama FFI. This is
-the only one of the four with a real JVM under it, and the only one that gets
+the only one of the four with a JVM under it, and the only one that gets
 raylib's structs handed to it as ordinary Clojure data.
 
 ## The dependency
@@ -48,8 +48,7 @@ port is plain data:
 Compare that with the babashka and jolt ports, which pack the same four bytes
 into an integer. They could describe the struct as this one does, so the packing
 buys a register-sized argument and no map per call rather than working around a
-limit. What the Clojure port really gets is not having to think about byte order
-at all.
+limit. The Clojure port gets to ignore byte order entirely.
 
 The cost is at the call: coffi wants the declared primitive, so a `::mem/float`
 parameter gets `(float ...)` and a `::mem/int` gets `(int ...)`. Passing a
@@ -73,7 +72,7 @@ library, the example declares them itself:
 ```
 
 Four lines, no fork, and it doubles as a worked example of reaching a call the
-binding does not carry yet. This is a genuine advantage of the describe-the-C
+binding does not carry yet. This is an advantage of the describe-the-C
 approach: adding a function is a data declaration, not a build.
 
 ## What it is good at
@@ -81,7 +80,7 @@ approach: adding a function is a data declaration, not a build.
 Everything around the game. This is the only port with the JVM's tooling
 attached, so a REPL, a profiler and the rest of the ecosystem are all available
 while it runs. If the game were going to grow into something with save files,
-networking or a content pipeline, this is the one that would carry it.
+networking or a content pipeline, this is the one to build on.
 
 The cost is startup, which is JVM startup plus a git dependency to resolve on
 first run, and a JDK 22 floor that the other three do not have.
@@ -93,7 +92,7 @@ This port descends from
 [`examples/pacman.clj`](https://github.com/babashka/ffi/blob/main/examples/pacman.clj)
 in [babashka/ffi](https://github.com/babashka/ffi), by way of the babashka port
 in this repo. What changed on the way over is the drawing layer, since coffi
-carries the structs that example had to pack by hand.
+marshals the structs that example had to pack by hand.
 
 babashka/ffi is MIT licensed, and the notice lives in `NOTICE.md` at the root
 of the repository.

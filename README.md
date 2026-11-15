@@ -64,8 +64,7 @@ needs `jolt`. None of the four needs the others.
 ## What is the same
 
 The game is. All four carry the same maze, the same physics and the same
-ghosts, and the interesting part is that this half of the code barely changes
-between runtimes.
+ghosts, and this half of the code barely changes between runtimes.
 
 The world is one immutable map. `step` reads input and returns the next state,
 nothing under it draws, and `draw-state!` is a pure function of the state it is
@@ -119,10 +118,9 @@ frames were 6.3 of it, and every frame after that ran at a steady 60 FPS. A
 wall clock charges that one-time cost against the deadline and quits before
 frame 2, which looks exactly like a game that does not work.
 
-Worth separating from jank itself, because the obvious conclusion is the wrong
-one. Run the same code as the AOT binary `lein` leaves in `target/` and there is
+Worth separating from jank itself, since the obvious conclusion is wrong. Run the same code as the AOT binary `lein` leaves in `target/` and there is
 no warm-up at all: a window in about a second, and six game-seconds in 6.4 of
-wall clock. The cost belongs to the `lein run` path, not to the language.
+wall clock. The cost comes from the `lein run` path, and the language adds none of it.
 
 ## Adding another example
 

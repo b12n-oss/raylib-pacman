@@ -1,8 +1,8 @@
 # Architecture
 
 This repository is four separate programs that happen to be the same game. It
-is deliberately not a library with four backends, and this page is about why,
-and about what that shape buys.
+is deliberately not a library with four backends. This page covers why, and
+what that shape buys.
 
 ## Four standalone projects, nothing shared
 
@@ -29,7 +29,7 @@ and carries a full copy of the game. Copy any one of them out of this
 repository and it still works.
 
 The duplication is the point. A shared core with four thin adapters would hide
-exactly what a reader comes here for: how much of the code actually has to
+exactly what a reader comes here for: how much of the code has to
 change when the runtime does, and which parts do not. With four full copies you
 can diff them.
 
@@ -77,7 +77,7 @@ graph TD
   is handed. That split is what let the same logic move across four runtimes
   without being rethought.
 - **The binding layer** is the only part that differs, and it differs because
-  each FFI carries a different amount across the boundary.
+  each FFI moves a different amount across the boundary.
 
 [The game](the-game.md) covers the first two layers. [Crossing to
 C](crossing-to-c.md) covers the third, which is where all four diverge.
@@ -94,8 +94,7 @@ boundary?
 | `babashka.ffi` | yes, as maps | colour packed into a uint anyway, Pac-Man hand-rolled from rlgl triangles |
 | `jolt.ffi` | yes, `:by-value` plus a layout buffer | same, via the wrapper's own `sector!` |
 
-Note the right-hand column says what each port does, not what its FFI allows.
-All four can pass a struct by value, and the bottom two choose the packed int
+The right-hand column says what each port does with its FFI. All four can pass a struct by value, and the bottom two choose the packed int
 and the triangle fan regardless, which is a smaller difference than this table
 used to claim. The jank row is the only hard constraint in it.
 
