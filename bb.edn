@@ -57,13 +57,13 @@
             "../docs-engine"
             (str (System/getProperty "user.home") "/dev/jlt-commons/docs-engine")]
            (remove nil?)
-           (filter (fn [d] (fs/exists? (fs/file d "bb.edn"))))
+           (filter (fn [d] (fs/exists? (fs/file d "src" "site" "core.clj"))))
            first))
 
     (defn site-task
       [task & args]
       (if-let [engine (docs-engine-dir)]
-        (let [argv (into ["bb" task (System/getProperty "user.dir")] (remove nil? args))
+        (let [argv (into ["jolt" "run" task (System/getProperty "user.dir")] (remove nil? args))
               res (apply p/shell {:dir (str engine) :continue true} argv)]
           (when-not (zero? (:exit res)) (System/exit (:exit res))))
         (do
